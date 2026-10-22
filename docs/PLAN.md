@@ -274,7 +274,7 @@ M1 and the site's import come first: attendance is the owner's first ask, and it
 
 ## How it's built and tested
 
-- **Repo:** this one (guildgolem-addon, moved out of the site's repo Oct 22): the addon in `GuildGolem/`, with the
+- **Repo:** this one (gg-addon, moved out of the site's repo Oct 22): the addon in `GuildGolem/`, with the
   packager's `.pkgmeta`, released to CurseForge (project 1757198) and Wago (`v63QDLGb`) by
   `.github/workflows/release.yml` when a `v1.2.3` tag is pushed (the folder is packaged as a checkout of its own,
   version `v1.2.3`; tokens in the repository secrets `CF_API_TOKEN` and

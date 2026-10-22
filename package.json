@@ -1,5 +1,5 @@
 {
-  "name": "guildgolem-addon",
+  "name": "gg-addon",
   "private": true,
   "description": "Guild Golem's in-game addon for WoW Forever",
   "type": "module",

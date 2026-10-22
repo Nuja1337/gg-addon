@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guild Golem Sync check</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; background: #16130f; color: #ece3d0; }
+  h1 { font-size: 1.4rem; }
+  button { font: inherit; padding: .4rem .9rem; margin: .25rem .5rem .25rem 0; cursor: pointer; }
+  pre { background: #221d16; padding: .75rem; white-space: pre-wrap; border-radius: 6px; }
+  .bad { color: #ff8a7a; }
+</style>
+</head>
+<body>
+<h1>Guild Golem Sync check</h1>
+<p>Two questions for the Guild Golem addon's Sync, answered in Chrome or Edge with the game running. Nothing leaves your computer: this page only reads and writes the two files you pick.</p>
+
+<h2>1. Can the browser read the game's saved file while the game runs?</h2>
+<p>Pick <code>WTF\Account\&lt;your account&gt;\SavedVariables\GuildGolemProbe.lua</code> in your game folder. Then <code>/reload</code> in game, or log out: the page should say the file changed a few seconds later.</p>
+<button id="pick">Pick the saved file</button>
+<pre id="read">Nothing picked yet.</pre>
+
+<h2>2. Does a reload read a file the browser rewrote?</h2>
+<p>Pick <code>Interface\AddOns\GuildGolemProbe\Data.lua</code> and press Write. Then <code>/reload</code> in game and type <code>/ggprobe</code>: the reload test line should say "by the browser" and the time below.</p>
+<button id="write">Pick Data.lua and write</button>
+<pre id="wrote">Nothing written yet.</pre>
+
+<p>Copy what both boxes say and send it with the probe's results.</p>
+
+<script>
+  const read = document.getElementById("read");
+  const wrote = document.getElementById("wrote");
+  const can = "showOpenFilePicker" in window;
+  if (!can) {
+    for (const box of [read, wrote]) {
+      box.textContent = "This browser can't keep a file open for a page (Firefox and Safari don't offer it). Open this page in Chrome or Edge.";
+      box.className = "bad";
+    }
+  }
+  const stamp = (ms) => new Date(ms).toLocaleTimeString();
+  let timer;
+
+  document.getElementById("pick").onclick = async () => {
+    if (!can) return;
+    try {
+      const [handle] = await window.showOpenFilePicker();
+      let last = (await handle.getFile()).lastModified;
+      const lines = [`Picked ${handle.name}, last written ${stamp(last)}. Watching for changes every 2 seconds...`];
+      read.textContent = lines.join("\n");
+      clearInterval(timer);
+      timer = setInterval(async () => {
+        try {
+          const file = await handle.getFile();
+          if (file.lastModified !== last) {
+            last = file.lastModified;
+            const text = await file.text();
+            lines.push(`${stamp(Date.now())}: changed (written ${stamp(last)}), ${file.size} bytes, read fine${text.includes("GuildGolemProbeDB") ? ", and it holds the probe's data" : ""}.`);
+            read.textContent = lines.join("\n");
+          }
+        } catch (error) {
+          lines.push(`${stamp(Date.now())}: couldn't read it: ${error.message}`);
+          read.textContent = lines.join("\n");
+        }
+      }, 2000);
+    } catch (error) {
+      read.textContent = `Not picked: ${error.message}`;
+    }
+  };
+
+  document.getElementById("write").onclick = async () => {
+    if (!can) return;
+    try {
+      const [handle] = await window.showOpenFilePicker();
+      const at = stamp(Date.now());
+      const writable = await handle.createWritable();
+      await writable.write(`-- Written by SyncCheck.html at ${at}.\nGuildGolemProbeData = { written = "by the browser at ${at}" }\n`);
+      await writable.close();
+      wrote.textContent = `Wrote ${handle.name} at ${at}. Now /reload in game and type /ggprobe.`;
+    } catch (error) {
+      wrote.textContent = `Couldn't write it: ${error.message}`;
+    }
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "guildgolem-addon",
+  "private": true,
+  "description": "Guild Golem's in-game addon for WoW Forever",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\""
+  },
+  "devDependencies": {
+    "luaparse": "0.3.1"
+  }
+}

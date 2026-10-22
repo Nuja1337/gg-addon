@@ -1,0 +1,49 @@
+# Guild Golem's in-game addon (GuildGolem/) to CurseForge and Wago Addons, when a version is tagged: `v1.0.0` releases
+# 1.0.0. It runs on those tags alone, never on a push or a pull request, so it costs nothing between releases.
+# Projects: CurseForge 1757198, Wago v63QDLGb. Tokens: the repository secrets CF_API_TOKEN and WAGO_API_TOKEN.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # The same checks as `npm test` locally: every addon is Lua 5.1 with TOCs that list files that exist.
+      - name: Check the addons
+        run: npm ci && npm test
+
+      # The packager takes its version and files from the top of a git checkout: the addon's folder becomes a checkout
+      # of its own, tagged with the version, so the probe, docs and tests never ship.
+      - name: The addon as a checkout of its own
+        run: |
+          if [ ! -f GuildGolem/GuildGolem.toc ]; then echo "GuildGolem/GuildGolem.toc is missing"; exit 1; fi
+          version="$GITHUB_REF_NAME"
+          mkdir -p "$RUNNER_TEMP/pkg"
+          cp -r GuildGolem "$RUNNER_TEMP/pkg/GuildGolem"
+          cd "$RUNNER_TEMP/pkg/GuildGolem"
+          git init -q
+          git add -A
+          git -c user.name="Guild Golem" -c user.email="releases@guildgolem.invalid" commit -q -m "Guild Golem $version"
+          git -c user.name="Guild Golem" -c user.email="releases@guildgolem.invalid" tag -a "$version" -m "Guild Golem $version"
+          echo "ADDON_DIR=$RUNNER_TEMP/pkg/GuildGolem" >> "$GITHUB_ENV"
+
+      - uses: BigWigsMods/packager@v2
+        with:
+          args: -t ${{ env.ADDON_DIR }} -p 1757198 -a v63QDLGb
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}

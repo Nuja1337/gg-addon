@@ -1,7 +1,7 @@
 # Guild Golem Probe
 
 A small test addon for WoW Forever. It checks what the game lets the Guild Golem addon do, and writes down what it
-finds. It changes nothing in the game and sends nothing anywhere: you copy its results and send them yourself.
+finds. It doesn't change anything in the game or send anything anywhere. You copy its results and send them yourself.
 
 It records what it sees, including the names of people in your group and guild, so share the results only with the
 Guild Golem team.
@@ -10,7 +10,7 @@ Guild Golem team.
 
 1. Close the game.
 2. Copy the `GuildGolemProbe` folder into your Forever game folder's `Interface\AddOns` folder.
-   **Write down that folder's full path**: it's one of the answers we need.
+   **Write down that folder's full path.** We need it.
 3. Start the game. At the character screen, open AddOns and make sure Guild Golem Probe is ticked.
 4. Log in. After a few seconds, chat says "Guild Golem Probe: loaded".
 

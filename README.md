@@ -1,39 +1,43 @@
 # Guild Golem addon
 
-The in-game addon for [Guild Golem](https://guildgolem.com), the WoW Forever guild companion: attendance, pugs, loot
-and the guild bank recorded in game, and the night's plan, priorities and assignments brought in from the site.
+The in-game addon for [Guild Golem](https://guildgolem.com), a guild management site for WoW Forever. It records
+attendance, pugs, loot and the guild bank in game, and brings in each night's plan, loot priorities and boss
+assignments from the site.
 
-**Not released yet.** The addon itself (`GuildGolem/`) is built once the in-game tests (docs/RESEARCH.md, "To test
-in game before building") are answered on the live client.
+**Not released yet.** The addon itself (`GuildGolem/`) gets built once the in-game tests in docs/RESEARCH.md ("To
+test in game before building") have been run on the live client.
 
-| Path | What it holds |
+| Path | What's in it |
 |---|---|
-| `GuildGolemProbe/` | A small test addon that records what Forever's client allows (its README says how to run it) |
+| `GuildGolemProbe/` | A small test addon that records what Forever's client allows. Its README explains how to run it |
 | `GuildGolem/` | The addon, once it's built |
-| `docs/PLAN.md` | What the addon consists of, its import and export strings, and its milestones |
+| `docs/PLAN.md` | What the addon will do, the text it trades with the site, and the milestones |
 | `docs/RESEARCH.md` | What Forever's client lets an addon do |
-| `LISTING.md` | The CurseForge and Wago project pages' text |
-| `test/` | Every addon here must be Lua 5.1 the game reads, with TOC files named after their folder (`npm test`) |
+| `LISTING.md` | The text for the CurseForge and Wago project pages |
+| `test/` | Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder (`npm test`) |
 
-## The site's side
+## Working with the site
 
-The addon and the site talk in one kind of string (docs/PLAN.md, "The contract with the site"). The site's reader and
-writer of it live in the site's own repository, which is private; the format in docs/PLAN.md is the contract both
-follow.
+The addon and the site trade one kind of text string. Its format is in docs/PLAN.md ("The contract with the site").
+The site's side lives in the site's own repository, which is private. Both follow the format in docs/PLAN.md.
 
 ## Releasing
 
-Push a tag `v1.2.3`: `.github/workflows/release.yml` checks the addons, packages `GuildGolem/` as version `v1.2.3`
-and uploads it to CurseForge (project 1757198) and Wago (`v63QDLGb`). It runs on those tags alone, never on a push or
-a pull request.
+Push a tag like `v1.2.3`. The release workflow (`.github/workflows/release.yml`) checks the addons, packages
+`GuildGolem/` as that version and uploads it to CurseForge (project 1757198) and Wago (`v63QDLGb`). It only runs on
+those tags.
 
-It needs two repository secrets (Settings › Secrets and variables › Actions):
+It needs two repository secrets, under Settings › Secrets and variables › Actions:
 
-| Secret | Where it comes from |
+| Secret | Where to get it |
 |---|---|
 | `CF_API_TOKEN` | CurseForge: Account settings › API tokens |
 | `WAGO_API_TOKEN` | Wago Addons: Account › API keys |
 
+## Problems and ideas
+
+Open an [issue](../../issues), or send feedback from any page of [guildgolem.com](https://guildgolem.com).
+
 ## Licence
 
-None yet: all rights reserved.
+There's no licence yet, so all rights are reserved.

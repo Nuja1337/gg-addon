@@ -1,7 +1,7 @@
 # The addon's listing on CurseForge and Wago Addons
 
-What the projects' pages say: CurseForge project 1757198, Wago `v63QDLGb`. The owner pastes these into each site's
-project settings (the sites have no way for the release workflow to set them); keep this file and the pages the same.
+The text for the project pages on CurseForge (project 1757198) and Wago (`v63QDLGb`). The release workflow can't set
+these, so they're pasted into each site's project settings by hand. Keep this file and the pages the same.
 
 ## Name
 
@@ -9,39 +9,39 @@ Guild Golem
 
 ## Summary (CurseForge's short line, Wago's summary)
 
-Your guild's companion for WoW Forever: attendance, loot and the guild bank in game, kept in step with guildgolem.com.
+Tracks attendance, loot and the guild bank in game for guilds that use guildgolem.com.
 
 ## Description
 
-**Guild Golem** is the in-game half of [guildgolem.com](https://guildgolem.com), the guild management and analytics
-site for WoW Forever. Officers plan the raid on the site; the addon carries it into the game and brings what happened
-back.
+**Guild Golem** is the in-game part of [guildgolem.com](https://guildgolem.com), a guild management and log analysis
+site for WoW Forever. Officers plan raids on the site. The addon brings the plan into the game and sends back what
+happened.
 
 **What it does**
 
-- **Attendance:** notes who was in the raid each night, bench and pugs included, ready to send to your guild's page.
-- **Loot:** shows each item's line the way your guild hands out loot (a loot council's priorities, reserves, or EPGP and
-  DKP standings) and records who got what.
-- **Your night:** the night's groups and boss assignments from the site, in game.
-- **Guild bank:** a snapshot of the bank for the guild's ledger on the site.
+- **Attendance.** It records who was in the raid each night, including the bench and pugs.
+- **Loot.** It shows how your guild hands out each item (loot council priorities, reserves, or EPGP and DKP standings)
+  and records who got what.
+- **Your night.** It shows the night's groups and boss assignments from the site.
+- **Guild bank.** It takes a snapshot of the bank for the guild's ledger on the site.
 
 **How it works**
 
-Copy your night's string from guildgolem.com and paste it into the addon: it loads at once, no reload. After the raid,
-the addon gives you a string to paste back on the site. Nothing is sent anywhere by itself, and the addon works with
-any guild that uses Guild Golem.
+Copy your night's text from guildgolem.com and paste it into the addon. It loads right away, without a reload. After
+the raid, the addon gives you text to paste back on the site. It never sends anything by itself, and any guild on Guild
+Golem can use it.
 
 **Status**
 
-In development: the first release follows testing on Forever's client with our raiders.
+In development. The first release comes after testing on Forever's client with our raiders.
 
 **Support**
 
-Nothing in the addon or on the site is locked behind a payment. Guild Golem is kept going by the people who chip in:
+Nothing in the addon or on the site needs a payment. If you'd like to help with running costs, see
 [guildgolem.com/support](https://guildgolem.com/support).
 
-The support line stays on the listing pages alone. Blizzard's add-on policy keeps requests for donations off the game
-itself (the add-on's website or distribution site only), so the addon never asks, links or shows a supporter's mark.
+The support line only goes on the listing pages. Blizzard's add-on policy keeps donation requests out of the game, so
+the addon never asks for money, links to the support page or shows a supporter mark.
 
 ## Project settings
 
@@ -59,8 +59,8 @@ Fields a site doesn't show are skipped.
 | More categories | Boss Encounters, Data Export, Bags & Inventory (the bank) | Raid |
 | License | All Rights Reserved (the code is the project's; its Lua is readable in game, as Blizzard's policy asks) | the same |
 | Website | https://guildgolem.com | https://guildgolem.com |
-| Issues | https://guildgolem.com/feedback | https://guildgolem.com/feedback |
-| Source | empty (the repository is private) | empty |
+| Issues | https://github.com/Nuja1337/gg-addon/issues | https://github.com/Nuja1337/gg-addon/issues |
+| Source | https://github.com/Nuja1337/gg-addon | https://github.com/Nuja1337/gg-addon |
 | Donation / support link | https://guildgolem.com/support (when the field takes a platform, the support platform's page) | the same |
 | Third-party clients (CurseForge's "allow distribution") | on, so WowUp and the like can install it | — |
 | Comments | on | — |
@@ -70,7 +70,7 @@ Fields a site doesn't show are skipped.
 
 ## The TOC's lines for the two sites
 
-So each site's app matches an installed copy to its project (added with the addon's first build, `GuildGolem/`):
+These let each site's app match an installed copy to its project. They go in with the addon's first build (`GuildGolem/`):
 
 ```
 ## X-Curse-Project-ID: 1757198
@@ -80,5 +80,7 @@ So each site's app matches an installed copy to its project (added with the addo
 ## Links
 
 - Website: https://guildgolem.com
-- Issues and feedback: https://guildgolem.com/feedback
+- Issues: https://github.com/Nuja1337/gg-addon/issues
+- Feedback: https://guildgolem.com/feedback
+- Source: https://github.com/Nuja1337/gg-addon
 - Support: https://guildgolem.com/support

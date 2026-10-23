@@ -40,6 +40,10 @@ Most checks run by themselves. The ones below need you.
 ### The browser test (Chrome or Edge)
 
 Open `SyncCheck.html` from the probe's folder in Chrome or Edge, and follow its two steps with the game running.
+It only writes the probe's own `Data.lua`, and refuses any other file.
+
+Chrome and Edge can't open files under Program Files, where the game installs by default. If your game is there,
+skip this test and say so with your results.
 
 ## Send the results
 

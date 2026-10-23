@@ -14,7 +14,8 @@
 </head>
 <body>
 <h1>Guild Golem Sync check</h1>
-<p>Two questions for the Guild Golem addon's Sync, answered in Chrome or Edge with the game running. Nothing leaves your computer: this page only reads and writes the two files you pick.</p>
+<p>Two questions for the Guild Golem addon's Sync, answered in Chrome or Edge with the game running. Nothing leaves your computer. This page reads the two files you pick, and writes only the probe's own Data.lua.</p>
+<p>Chrome and Edge can't open files under Program Files, where the game installs by default. If your game is there, these checks can't run, since a copy of the files somewhere else isn't the one the game writes and reads (docs/RESEARCH.md, "Probe results").</p>
 
 <h2>1. Can the browser read the game's saved file while the game runs?</h2>
 <p>Pick <code>WTF\Account\&lt;your account&gt;\SavedVariables\GuildGolemProbe.lua</code> in your game folder. Then <code>/reload</code> in game, or log out: the page should say the file changed a few seconds later.</p>
@@ -68,15 +69,24 @@
     }
   };
 
+  // Writing replaces the whole file, so only the probe's own Data.lua is written. Picking the saved file by mistake
+  // would wipe the probe's results, and many addons have a Data.lua of their own.
   document.getElementById("write").onclick = async () => {
     if (!can) return;
     try {
       const [handle] = await window.showOpenFilePicker();
+      const probes = handle.name === "Data.lua" && (await (await handle.getFile()).text()).includes("GuildGolemProbeData");
+      if (!probes) {
+        wrote.textContent = `Not written. ${handle.name} isn't the probe's Data.lua, so it was left as it was. Pick Interface\\AddOns\\GuildGolemProbe\\Data.lua.`;
+        wrote.className = "bad";
+        return;
+      }
       const at = stamp(Date.now());
       const writable = await handle.createWritable();
       await writable.write(`-- Written by SyncCheck.html at ${at}.\nGuildGolemProbeData = { written = "by the browser at ${at}" }\n`);
       await writable.close();
       wrote.textContent = `Wrote ${handle.name} at ${at}. Now /reload in game and type /ggprobe.`;
+      wrote.className = "";
     } catch (error) {
       wrote.textContent = `Couldn't write it: ${error.message}`;
     }

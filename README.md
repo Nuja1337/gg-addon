@@ -23,9 +23,13 @@ The site's side lives in the site's own repository, which is private. Both follo
 
 ## Releasing
 
-Push a tag like `v1.2.3`. The release workflow (`.github/workflows/release.yml`) checks the addons, packages
-`GuildGolem/` as that version and uploads it to CurseForge (project 1757198) and Wago (`v63QDLGb`). It only runs on
-those tags.
+Push a version tag. The release workflow (`.github/workflows/release.yml`) checks the addons, packages `GuildGolem/`
+as that version and uploads it to CurseForge (project 1757198) and Wago (`v63QDLGb`). It only runs on tags that start
+with `v` and a digit.
+
+The tag also sets the file type. A tag with `beta` in it uploads a beta file, one with `alpha` an alpha file, and any
+other a release. Tag the first release `v0.1.0-beta`, since the first file goes out as a beta (LISTING.md, "First
+file"). A tag like `v1.0.0` uploads a release.
 
 It needs two repository secrets, under Settings › Secrets and variables › Actions:
 
@@ -33,6 +37,8 @@ It needs two repository secrets, under Settings › Secrets and variables › Ac
 |---|---|
 | `CF_API_TOKEN` | CurseForge: Account settings › API tokens |
 | `WAGO_API_TOKEN` | Wago Addons: Account › API keys |
+
+If either is missing, the release stops at its first step, before anything is packaged.
 
 ## Problems and ideas
 

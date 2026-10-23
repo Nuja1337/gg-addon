@@ -276,11 +276,12 @@ M1 and the site's import come first: attendance is the owner's first ask, and it
 
 - **Repo:** this one (gg-addon, moved out of the site's repo Oct 22): the addon in `GuildGolem/`, with the
   packager's `.pkgmeta`, released to CurseForge (project 1757198) and Wago (`v63QDLGb`) by
-  `.github/workflows/release.yml` when a `v1.2.3` tag is pushed (the folder is packaged as a checkout of its own,
-  version `v1.2.3`; tokens in the repository secrets `CF_API_TOKEN` and
-  `WAGO_API_TOKEN`), with `_Camelot` and `_Mainline` TOCs. Its TOCs carry `## X-Curse-Project-ID: 1757198` and
-  `## X-Wago-ID: v63QDLGb`; the projects' page text is `LISTING.md`. Versions follow the export format: a new format version means a new major version,
-  and the site reads every format it ever shipped.
+  `.github/workflows/release.yml` when a version tag is pushed (the folder is packaged as a checkout of its own, with
+  the tag as its version, and a tag with `beta` in it uploads a beta, as the first, `v0.1.0-beta`, will; tokens in
+  the repository secrets `CF_API_TOKEN` and `WAGO_API_TOKEN`), with the TOCs above ("Ground rules from the client").
+  Its TOCs carry `## X-Curse-Project-ID: 1757198` and `## X-Wago-ID: v63QDLGb`; the projects' page text is
+  `LISTING.md`. Versions follow the export format, so a new format version means a new major version, and the site
+  reads every format it ever shipped.
 - **Pure Lua cores** (strings, snapshots to attendance, the loot ledger) tested outside the game with busted, against
   fixtures shared with the site's tests, so both ends agree on the format.
 - **In game:** a checklist per milestone on the live client, in a raid group, before each release; the client changes

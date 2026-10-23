@@ -107,6 +107,39 @@ and Ketho's dump at 70338.
   restricted, out of combat only, for the leader or an assistant. `ReloadUI()` is unrestricted. Auras are secret in
   combat and encounters, and some spells always (`C_Secrets.ShouldAurasBeSecret`).
 
+## Probe results (Oct 22, client 1.60.1 build 70532)
+
+The owner ran GuildGolemProbe on Forever's client, alone and with a second player, outside instances. What it found:
+
+| Question | Answer |
+|---|---|
+| Client | 1.60.1, build 70532 (Oct 20, 2026), interface 16001, `WOW_PROJECT_ID` 18, expansion level 0, enUS |
+| Install folder | Forever installs as Battle.net's "classic beta" product: `World of Warcraft\_classic_beta_\Interface\AddOns`, with saved variables in `_classic_beta_\WTF\Account\<account>\SavedVariables` |
+| Which TOC loads | `<Addon>_Camelot.toc`. Ship it, with the plain `.toc` as a fallback |
+| A file rewritten on disk | Picked up by `/reload`, with no restart |
+| Names | `UnitName` and `UnitFullName` give the first name and the surname as two values. Raid roster, guild roster and addon-message senders give "First Surname" with a space. A whisper to "First Surname" arrives |
+| GUIDs | `Player-<server>-<id>`, with more than one server id on the one realm (two seen). Key players by the whole GUID |
+| Realm | "Classic Beta PvP". Guild info's fourth value names a sub-realm |
+| Guild roster | Readable outside instances, including class, level, zone, notes and GUID |
+| Guild bank | `C_GuildBank` reports enabled. Its log is untested (no bank opened) |
+| Loot methods | Five offered: free for all, round robin, master, group, need before greed |
+| Loot records | `ENCOUNTER_LOOT_RECEIVED` gives the item link and winner. Loot window slots are readable. Links carry Forever's own item ids (in the 288000s) and a bonus id (1491) |
+| Chat | Loot and roll system lines aren't secret outside instances |
+| Addon messages | Party, raid and whisper all deliver, and the prefix registers |
+| Group control | `SetRaidSubgroup` ran without error |
+| Missing functions | `CanViewOfficerNote` |
+| Clock | The PC and the server are within a second |
+
+**Not tested yet:**
+- inside a raid instance: chat lockdown and secret values, addon messages during and after a pull, and the encounter
+  events' payloads;
+- the guild bank's log, master loot handing out an item, trades, inspect, an invite by full name, and the professions'
+  recipe lists.
+
+**The browser can't reach these files in a default install.** Chrome and Edge block web pages from picking anything
+under `Program Files`, where Battle.net installs WoW (Chromium's `kBlockPaths`). That rules out a site tab reading the
+addon's saved file (Sync, M7) or the combat log (live logging) unless WoW is moved or a desktop app does the reading.
+
 ## Sources
 
 - Gethe/wow-ui-source, branch `forever`, commit 15666a6e "1.60.1 (70245)", re-checked at 172a387e "1.60.1 (70450)": https://github.com/Gethe/wow-ui-source/tree/forever

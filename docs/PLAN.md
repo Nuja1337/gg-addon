@@ -11,7 +11,8 @@ differs, these win:
   confirm).
 - **Players download it** from the site's Addon page.
 - **No reloads in normal use.** A pasted string loads at once, and logging out writes the file.
-- **Sync** takes the place of a desktop uploader, which is on hold.
+- **Sync** takes the place of a desktop uploader, which is on hold. The probe has since found (Oct 22) that a
+  browser tab can do this only when the game is installed outside Program Files (below, "A Sync button").
 - **On the site,** the guild bank is built already, and pug lists aren't.
 - **The string format** below stands.
 
@@ -233,15 +234,19 @@ game writes those to disk when the interface reloads (or on logout). So the call
   The file `WTF/Account/<account>/SavedVariables/GuildGolem.lua` is on disk a few seconds later.
 - **The site reads that file itself.** Once, the officer points a Guild Golem page at the file (the browser's File
   System Access API: Chrome and Edge on a desktop). While a Guild Golem tab is open the page watches the file, and
-  when it changes reads it and posts what is new, as the paste box would have. Nothing to install.
+  when it changes reads it and posts what is new, as the paste box would have.
 - **The other way round:** with leave to write, the page keeps the night's import (roster, reserves, priorities, pug
   lists) in a data file in the addon's own folder, which the game reads at the next reload.
-- **Its limits:** Chromium browsers only (others keep the paste box, or the desktop uploader of M7); a tab must be
-  open; the browser asks again for the file after a restart, one click; a reload takes the screen for a few seconds,
-  so it is for between pulls.
-- **To test before building it:** that the browser can read the file while the game has it; that a data file the page
-  rewrote is read on a reload without restarting the client (a file the TOC lists should be; a new one needs a
-  restart).
+- **Only with the game outside Program Files** (docs/RESEARCH.md, "Probe results", Oct 22). Chrome and Edge refuse a
+  page any file under `Program Files`, and Battle.net installs the game there by default. So a tab can read and
+  write these files only when the game is installed somewhere else. For a default install, the desktop app is the
+  way to do it (gg-desktop, on hold).
+- **Its other limits:** Chromium browsers only (others keep the paste box); a tab must be open; the browser asks
+  again for the file after a restart, one click; a reload takes the screen for a few seconds, so it is for between
+  pulls.
+- **To test before building it:** with the game outside Program Files, that the browser can read the saved file while
+  the game has it, and rewrite the data file. The probe found that a file the TOC lists, rewritten on disk, is read
+  on a `/reload` without restarting the client (docs/RESEARCH.md, "Probe results").
 - **Blizzard's API for Forever** (the owner: "there will be a forever api") will give characters, their gear and the
   guild's roster with no addon at all. Loot as it is handed out, attendance by the minute and the bank's ledger stay
   the addon's.
@@ -274,7 +279,7 @@ game writes those to disk when the interface reloads (or on logout). So the call
 | M4 | **Loot recording and seeding** | Every drop, trade and disenchant in the export; reserves and priorities in tooltips and the loot window |
 | M5 | **Loot distribution** | Rolls, council voting and DKP or EPGP bidding in the addon (and master loot if Forever allows it); the site charges the bids from the export |
 | M6 | **Guild bank** | The bank's log or a bank character's snapshot becomes the site's ledger |
-| M7 | **Sync** | An open Guild Golem tab reads the addon's saved file when the game writes it (logout or reload) and writes the next import beside it, so nobody pastes (a desktop app is on hold, Oct 20) |
+| M7 | **Sync** | An open Guild Golem tab reads the addon's saved file when the game writes it (logout or reload) and writes the next import beside it, so nobody pastes. A tab can reach those files only when the game is installed outside Program Files. A default install needs the desktop app, which is on hold (Oct 20) |
 
 M1 and the site's import come first: attendance is the owner's first ask, and it proves the strings end to end.
 

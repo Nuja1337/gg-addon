@@ -17,15 +17,15 @@ differs, these win:
 
 ## What it's for
 
-The site already plans the raid (signups, groups, soft reserves, pug lists) and reads it afterwards (logs, loot,
-attendance). The addon closes the loop inside the game, where the site can't see:
+The site already plans the raid (signups, groups, soft reserves) and reads it afterwards (logs, loot, attendance).
+The addon closes the loop inside the game, where the site can't see:
 
 | Job | Today, without the addon | With it |
 |---|---|---|
 | Who was there | Answers, and logs when someone shares one | Roster snapshots at zone-in, every pull and the end: late arrivals, early leavers, the bench, pugs |
-| Pugs | A white and black list on the site | Flagged the moment they join the group; every pug seen comes back to the site |
+| Pugs | None yet (the site's pug lists aren't built) | Flagged the moment they join the group; every pug seen comes back to the site |
 | Loot | Typed in by hand on the night's Loot page | Every drop, roll, trade and disenchant recorded; soft reserves and priorities shown in game; rolls or a council run from the addon |
-| Guild bank | Nothing | Deposits, withdrawals and gold as a ledger on the site |
+| Guild bank | Bankers count it by hand on the site's Bank page | Deposits, withdrawals and gold as a ledger on the site |
 | Raid set-up | Officers invite and arrange groups by hand from the planner | One click invites the planned raid and puts everyone in their planned group |
 
 ## Ground rules from the client (docs/RESEARCH.md)
@@ -257,7 +257,10 @@ game writes those to disk when the interface reloads (or on logout). So the call
 - **GUIDs:** a GUID on roster characters where the addon (or a log) sees one, and on pugs (`pugs.guid`, the migration
   docs/RESEARCH.md foresaw), so names stop mattering.
 - **Loot imports** into the existing ledger with `source = 'addon'` and its dedupe keys.
-- **A guild bank ledger:** new tables (transactions and snapshots), a Bank tab under the guild for officers.
+- **Pug lists:** pages for the white and black lists the addon imports (M3). The site's `pugs` table has their
+  states (seen, white, black), but nothing reads or writes it yet.
+- **A guild bank ledger:** new tables (transactions and snapshots) behind the Bank page the site already has, which
+  bankers fill by hand today.
 - **Bot:** the night's Discord post gains "Attendance recorded" and a loot summary once the export is in.
 
 ## Milestones

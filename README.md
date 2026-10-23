@@ -4,8 +4,13 @@ The in-game addon for [Guild Golem](https://guildgolem.com), a guild management 
 attendance, pugs, loot and the guild bank in game, and brings in each night's plan, loot priorities and boss
 assignments from the site.
 
-**Not released yet.** The addon itself (`GuildGolem/`) gets built once the in-game tests in docs/RESEARCH.md ("To
-test in game before building") have been run on the live client.
+## Status
+
+Not released yet. The addon itself (`GuildGolem/`) gets built once the in-game tests in docs/RESEARCH.md ("To test in
+game before building") have been run on the live client. The probe answered several of them on Oct 22, outside
+instances (docs/RESEARCH.md, "Probe results"). The ones inside a raid are still to run.
+
+## What's here
 
 | Path | What's in it |
 |---|---|
@@ -42,7 +47,8 @@ If either is missing, the release stops at its first step, before anything is pa
 
 ## Problems and ideas
 
-Open an [issue](../../issues), or send feedback from any page of [guildgolem.com](https://guildgolem.com).
+Open an [issue](../../issues) here and pick "Something's wrong" or "An idea", or use Feedback on any page of
+[guildgolem.com](https://guildgolem.com).
 
 ## Licence
 

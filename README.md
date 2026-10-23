@@ -14,7 +14,7 @@ test in game before building") have been run on the live client.
 | `docs/PLAN.md` | What the addon will do, the text it trades with the site, and the milestones |
 | `docs/RESEARCH.md` | What Forever's client lets an addon do |
 | `LISTING.md` | The text for the CurseForge and Wago project pages |
-| `test/` | Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder (`npm test`) |
+| `test/` | Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder (`npm test`, on Node 22 or newer). They run on every push and pull request (`.github/workflows/test.yml`) |
 
 ## Working with the site
 

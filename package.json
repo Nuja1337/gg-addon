@@ -3,6 +3,9 @@
   "private": true,
   "description": "Guild Golem's in-game addon for WoW Forever",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test \"test/**/*.test.mjs\""
   },

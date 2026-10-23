@@ -1,7 +1,7 @@
 # Guild Golem's in-game addon (GuildGolem/) to CurseForge and Wago Addons, when a version is tagged. The packager takes
 # the file type from the tag. One with "beta" in it uploads a beta, one with "alpha" an alpha, and any other, such as
 # `v1.0.0`, a release. The first tag is `v0.1.0-beta`, since the first file goes out as a beta (LISTING.md, "First
-# file"). It runs on those tags alone, never on a push or a pull request.
+# file"). It runs on those tags alone, never on a push or a pull request (test.yml checks those).
 # Projects: CurseForge 1757198, Wago v63QDLGb. Tokens: the repository secrets CF_API_TOKEN and WAGO_API_TOKEN.
 name: Release
 

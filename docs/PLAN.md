@@ -1,16 +1,19 @@
 # In-game addon: plan
 
-What the Codex addon is made of, how it talks to the site, and the order to build it in. **A plan, not a build**
+What the Guild Golem addon is made of, how it talks to the site, and the order to build it in. **A plan, not a build**
 (owner, Oct 8: "draft me a plan for our warcraft addon and what it needs to consist of - dont build it yet"): no Lua,
 no addon files, until the owner says. What Forever's client allows is in docs/RESEARCH.md; this plan rests on
 it and must be re-checked against the client before building, since it changes weekly.
 
-**The current plan (Oct 20)** is the owner's Claude Doc "Bot, addon and site plan"
-(https://claude.ai/code/artifact/849ea47a-33f1-4ee3-922f-18c3889e1621). It ties the addon to the bot and the site and
-wins where the two differ: the addon's name in game (Guild Golem, folder `GuildGolem`, `/gg`, the owner's to confirm),
-players downloading it from the site's Addon page, no reloads in normal use (a pasted string loads at once; logout
-writes the file), Sync in place of a desktop uploader (on hold), what's already built (the guild bank is; pug lists
-aren't), and 41 edge cases. The string format below stands.
+**Decided on Oct 20**, when the owner planned the addon, the bot and the site together. Where the rest of this file
+differs, these win:
+- **The name** in game is Guild Golem, in the folder `GuildGolem`, with the slash command `/gg` (the owner's to
+  confirm).
+- **Players download it** from the site's Addon page.
+- **No reloads in normal use.** A pasted string loads at once, and logging out writes the file.
+- **Sync** takes the place of a desktop uploader, which is on hold.
+- **On the site,** the guild bank is built already, and pug lists aren't.
+- **The string format** below stands.
 
 ## What it's for
 
@@ -40,7 +43,7 @@ attendance). The addon closes the loop inside the game, where the site can't see
 
 ## What it consists of
 
-One addon, `Codex`, in modules that can be turned off. Libraries: Ace3 (AceAddon, AceDB, AceEvent, AceComm,
+One addon, `GuildGolem`, in modules that can be turned off. Libraries: Ace3 (AceAddon, AceDB, AceEvent, AceComm,
 AceConsole, AceGUI), LibDeflate, a base64 decoder and rxi's json.lua (the import and export strings), LibDataBroker and
 LibDBIcon (the minimap button). All MIT or similar; vendored in `Libs/`. It reads and writes no other addon's formats
 (the owner, Oct 19): what others did for the site (Gargul's priorities, MRT's notes) is its own (below, "Instead of
@@ -50,13 +53,13 @@ other addons").
 - **Saved variables:** one account-wide table (imports, pug lists, settings, and each character's bank snapshots
   keyed by GUID): a per-character file lands in a folder Sync doesn't read (Oct 20). A schema version, with migrations
   when it changes.
-- **Identity:** the player's GUID, guild name, and the guild's Codex handle (from the last import), so exports are
-  tied to one guild.
+- **Identity:** the player's GUID, guild name, and the guild's handle on the site (from the last import), so exports
+  are tied to one guild.
 - **Strings:** `GG1:` + base64 of the zlib-deflated JSON of one object (below, "The string"), its Adler-32 checked
   and its size limited. Imports are validated field by field before use; anything unknown is ignored, never run.
 - **Event bus** over the client's events, with a queue for anything that must wait out an encounter.
-- **UI:** a minimap button and a slash command (`/codex`) that open one window with tabs: Tonight, Attendance, Loot,
-  Bank, Pugs, Import/Export, Settings. Everything works from the slash command too (`/codex import`, `/codex export`).
+- **UI:** a minimap button and a slash command (`/gg`) that open one window with tabs: Tonight, Attendance, Loot,
+  Bank, Pugs, Import/Export, Settings. Everything works from the slash command too (`/gg import`, `/gg export`).
 - **Version check:** addons in the raid tell each other their version (AceComm, RAID), so the leader sees who's out
   of date.
 
@@ -290,8 +293,8 @@ M1 and the site's import come first: attendance is the owner's first ask, and it
 
 ## Open questions for the owner
 
-1. **Name:** "Guild Golem" in game (the `GuildGolem` folder and saved variables the Sync button reads, `GG1:`
-   strings), or "Codex"?
+1. **Name:** is it "Guild Golem" in game, with the `GuildGolem` folder and saved variables the Sync button reads,
+   the `/gg` command and `GG1:` strings?
 2. **Loot:** which method does the guild want first: soft reserves with rolls, loot council, DKP or EPGP bidding, or
    master loot?
 3. **Bench credit:** does a benched or standby raider count as attending?

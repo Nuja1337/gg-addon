@@ -4,8 +4,8 @@ What WoW Forever's client lets an addon do, for the addon the owner wants (the s
 research only** (owner, Oct 7): no addon code until the owner says. Researched Oct 7, 2026 from Blizzard's exported UI
 source, Gethe/wow-ui-source branch `forever` at 1.60.1 (70245, Oct 6), with an in-game API dump (Ketho/
 BlizzardInterfaceResources `forever`, build 70205), Gargul's Forever support, and warcraft.wiki.gg. **Re-checked Oct 20**
-against 1.60.1 (70450, Oct 16) and the dump at build 70338: "Corrections and additions (Oct 20)" below, and the
-plan's edge cases (docs/PLAN.md). Re-check before building: the client changes weekly.
+against 1.60.1 (70450, Oct 16) and the dump at build 70338: "Corrections and additions (Oct 20)" below. Re-check
+before building: the client changes weekly.
 
 ## The client
 

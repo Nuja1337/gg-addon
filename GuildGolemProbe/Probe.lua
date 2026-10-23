@@ -1,5 +1,5 @@
--- Guild Golem Probe (milestone M0, docs/ADDON-PLAN.md): answers, on WoW Forever's own client, the questions the
--- Guild Golem addon is planned around (docs/ADDON-RESEARCH.md, "To test in game"). It changes nothing in the game: it
+-- Guild Golem Probe (milestone M0, docs/PLAN.md): answers, on WoW Forever's own client, the questions the
+-- Guild Golem addon is planned around (docs/RESEARCH.md, "To test in game"). It changes nothing in the game: it
 -- reads, records what it saw in its saved variables (GuildGolemProbeDB), and shows everything as text to copy with
 -- /ggprobe. Every check runs in a protected call, so one the client refuses is recorded as the answer instead of
 -- stopping the rest, and a value the client keeps secret is recorded as <secret> without being touched.

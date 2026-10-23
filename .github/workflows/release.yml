@@ -15,10 +15,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Each action is pinned to a commit, since a tag can be moved to other code. That matters most for the packager,
+    # which is third-party and gets both store tokens. To update one, pin the commit its new tag points to.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (v4.4.0)
         with:
           node-version: 24
 
@@ -41,7 +43,7 @@ jobs:
           git -c user.name="Guild Golem" -c user.email="releases@guildgolem.invalid" tag -a "$version" -m "Guild Golem $version"
           echo "ADDON_DIR=$RUNNER_TEMP/pkg/GuildGolem" >> "$GITHUB_ENV"
 
-      - uses: BigWigsMods/packager@v2
+      - uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2 (v2.6.1)
         with:
           args: -t ${{ env.ADDON_DIR }} -p 1757198 -a v63QDLGb
         env:

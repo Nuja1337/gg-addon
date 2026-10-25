@@ -614,7 +614,7 @@ end
 --   buttons     a list of { key, label, width }, laid out in a row under the copy box
 -- Returns a handle, or nil and a message when the client would not build it:
 --   w.show(), w.hide(), w.toggle(), w.isShown()
---   w.setStatus(text)        the line under the title
+--   w.setStatus(text)        the line under the title (w.statusText() reads it back, as w.noteText() and w.copyLabelText())
 --   w.setNote(text)          the line under the paste box (what was read, or why not)
 --   w.setCopyLabel(text)
 --   w.setPaste(text), w.paste()   the paste box's text, set or read
@@ -736,6 +736,9 @@ local function buildWindow(spec)
   function w.setStatus(text) status:SetText(text or "") end
   function w.setNote(text) note:SetText(text or "") end
   function w.setCopyLabel(text) copyLabel:SetText(text or "") end
+  function w.statusText() return status:GetText() end
+  function w.noteText() return note:GetText() end
+  function w.copyLabelText() return copyLabel:GetText() end
   function w.setPaste(text) paste:SetText(text or "") end
   function w.paste() return paste:GetText() end
   function w.setCopy(text)

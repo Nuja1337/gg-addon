@@ -340,8 +340,8 @@ function Export.fit(object, limit)
   for i, item in ipairs(cut) do objects[i] = item.object end
   numbered(objects)
   for _, item in ipairs(cut) do
-    local text_ = Codec.encode(item.object)
-    item.text = text_
+    local fits, packed = sized(item.object, limit)
+    item.text = fits and packed or nil
   end
   return cut
 end

@@ -337,7 +337,7 @@ function UI.slash(text)
   text = tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")
   local command, rest = text:match("^(%S+)%s*(.*)$")
   command = command and command:lower() or ""
-  rest = rest:lower()
+  rest = (rest or ""):lower()
 
   if command == "" or command == "show" or command == "toggle" then
     toggle()
@@ -364,8 +364,16 @@ function UI.slash(text)
   end
 end
 
+-- A command that fails is recorded with the other errors and does not raise one in the player's face.
+local function run(text)
+  local ok, err = pcall(UI.slash, text)
+  if ok then return end
+  ns.Store.recordError("slash /gg", err)
+  say("That did not work (" .. tostring(err):match("^[^\n]*") .. "). It is in the saved error list.")
+end
+
 function UI.init()
-  client().registerSlash("GUILDGOLEM", { "/gg", "/guildgolem" }, UI.slash)
+  client().registerSlash("GUILDGOLEM", { "/gg", "/guildgolem" }, run)
 end
 
 -- The window keeps up with the recording while it is open.

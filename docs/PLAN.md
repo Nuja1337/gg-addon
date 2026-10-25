@@ -1,9 +1,11 @@
 # In-game addon: plan
 
-What the Guild Golem addon is made of, how it talks to the site, and the order to build it in. **A plan, not a build**
-(owner, Oct 8: "draft me a plan for our warcraft addon and what it needs to consist of - dont build it yet"): no Lua,
-no addon files, until the owner says. What Forever's client allows is in docs/RESEARCH.md; this plan rests on
-it and must be re-checked against the client before building, since it changes weekly.
+What the Guild Golem addon is made of, how it talks to the site, and the order to build it in. It started as **a plan,
+not a build** (owner, Oct 8: "draft me a plan for our warcraft addon and what it needs to consist of - dont build it
+yet"). **Building began Oct 25 with the core** (the codec, the saved variables, the imports, the launch adapter and the
+event bus, in `GuildGolem/`; below, "What the core is"); the rest is still this plan. What
+Forever's client allows is in docs/RESEARCH.md; this plan rests on it and must be re-checked against the client before
+each milestone, since it changes weekly.
 
 **Decided on Oct 20**, when the owner planned the addon, the bot and the site together. Where the rest of this file
 differs, these win:
@@ -44,11 +46,12 @@ The addon closes the loop inside the game, where the site can't see:
 
 ## What it consists of
 
-One addon, `GuildGolem`, in modules that can be turned off. Libraries: Ace3 (AceAddon, AceDB, AceEvent, AceComm,
-AceConsole, AceGUI), LibDeflate, a base64 decoder and rxi's json.lua (the import and export strings), LibDataBroker and
-LibDBIcon (the minimap button). All MIT or similar; vendored in `Libs/`. It reads and writes no other addon's formats
-(the owner, Oct 19): what others did for the site (Gargul's priorities, MRT's notes) is its own (below, "Instead of
-other addons").
+One addon, `GuildGolem`, in modules that can be turned off. Libraries (vendored in `GuildGolem/Libs/`, each from its
+author's repository with its license, version and SHA-256 in `Libs/README.md`): LibStub, LibDeflate and rxi's json.lua
+(the import and export strings). The base64 reader and writer are the addon's own (`Core/Base64.lua`, forty lines),
+and there is **no Ace3**: the event bus, saved variables and addon messages are small enough to own. LibDataBroker and
+LibDBIcon come in with the minimap button. It reads and writes no other addon's formats (the owner, Oct 19): what others
+did for the site (Gargul's priorities, MRT's notes) is its own (below, "Instead of other addons").
 
 ### Core
 - **Saved variables:** one account-wide table (imports, pug lists, settings, and each character's bank snapshots
@@ -269,7 +272,7 @@ game writes those to disk when the interface reloads (or on logout). So the call
 | | Milestone | Done when |
 |---|---|---|
 | M0 | **In-game tests** (docs/RESEARCH.md, "To test in game") | Name formats, guild bank on or off, loot methods and master loot, secret restrictions in raid zones: answered on the live client |
-| M1 | **Core and attendance** | The addon records a raid's snapshots and exports them; the site imports them as attendance |
+| M1 | **Core and attendance** | The addon records a raid's snapshots and exports them; the site imports them as attendance. **First part done (Oct 25): the core.** `Core/Codec.lua` reads and writes the strings, `Core/Store.lua` keeps the saved variables with migrations and an outbox, `Core/Import.lua` reads the four imports, `Client.lua` is the launch adapter and `Core/Events.lua` the event bus, with specs. **Still to do:** the roster snapshots at zone-in, every pull and the end, the export (`fit`, the size rules) and the window to paste it from |
 | M2 | **Tonight** | Import the plan; invite the raid and arrange its groups in one click each; each player's assignments for the boss |
 | M3 | **Pugs** | Pug lists in game with warnings; pugs seen flow back to the site |
 | M4 | **Loot recording and seeding** | Every drop, trade and disenchant in the export; reserves and priorities in tooltips and the loot window |
@@ -299,6 +302,32 @@ M1 and the site's import come first: attendance is the owner's first ask, and it
 - **In game:** a checklist per milestone on the live client, in a raid group, before each release; the client changes
   weekly, so the research is re-checked first.
 - **The site's side** gets worker tests for every import, including bad, old and duplicate strings.
+
+### What the core is (Oct 25)
+
+All of it plain Lua 5.1 with specs in `test/lua/specs/`, run in Node and on real Lua 5.1 in CI; `Client.lua` is the one
+file that names the game.
+
+| File | What it does |
+|---|---|
+| `Client.lua` | The launch adapter. Detects each API before using it, wraps every call in pcall, drops secret values, and returns plain rows (roster, instance, lockouts, guild, encounter start and end, loot received, build, server time). `Client.caps()` says what the client has. Each line that follows retail's documented shape and has not been seen on Forever is marked `unverified on Forever`: `grep -n "unverified on Forever" GuildGolem/Client.lua` is the launch-day probe pass's list |
+| `Core/Codec.lua`, `Base64.lua`, `ZlibSize.lua` | The `GG1:` strings exactly as contract/README.md reads and writes them, with every refusal (`not-ours`, `too-long`, `bad-text`, `bad-zlib`, `too-big`, `bad-json`, `malformed`, `newer`, `wrong-way`) and the size limits. `ZlibSize` counts what a stream would unpack to before LibDeflate (which has no limit) unpacks it, so a small string cannot grow to hundreds of MB |
+| `Core/Store.lua` | `GuildGolemDB` with a `schema` (1) and forward-only migrations, a capped error list, and the outbox of exports not yet pasted, which nothing drops. A table from a newer addon is left as it is, with a warning, and the session works on a scratch copy |
+| `Core/Import.lua` | Reads the four imports into the store by the reader rules (unknown fields ignored, unknown enums read as their default, unknown people ignored, a missing required field refuses the whole string and names it) |
+| `Core/Events.lua` | The event bus: handlers under pcall (an error is recorded and never breaks the others), and addon messages queued through an encounter, a lockdown or the client's rate limit, sent after `ENCOUNTER_END` or when a restriction clears |
+
+**What the core chose where the contract is silent** (each is one place in the code, easy to change):
+1. **How the imports of one night combine.** Kept by the night's handle; each part of a raid (loot, assignments, groups
+   and so on) is replaced by an import of the same or a newer `meta.made`, never by an older one, and a whole `night`
+   string replaces the night and drops the raids it doesn't list. A person's name comes from the newest import and their
+   characters are every character any import named.
+2. **Officer tiers.** `meta.officer` is kept with each import, but no item field is marked officer-only in the contract, so
+   the core hides nothing yet. The window (M2) decides what to show, from that flag and the player's guild rank.
+3. **A string for another guild.** An import's guild replaces the saved guild; the contract only refuses exports for
+   another guild, on the site.
+4. **`meta` as an empty list.** json.lua cannot tell `[]` from `{}`, so `"meta": []` passes the codec and is refused by
+   the import for lacking `from`. json.lua also reads a trailing comma and hex numbers, which strict JSON does not.
+   Neither can come from a writer that follows the contract.
 
 ## Open questions for the owner
 

@@ -160,7 +160,12 @@ Checklist:
 4. Add a row to the table below for the build, with the date and what changed.
 5. Update "Probe results" and "Not tested yet" above, and the feature table at the top where an answer changes it.
 6. If a call was missing or refused, note it here and in docs/PLAN.md where the addon relies on it.
-7. **Compare between two clients.** Run the dungeon step with two players, each with the probe, in the same party and
+7. **Check what the addon assumes.** `grep -n "unverified on Forever" GuildGolem/Client.lua` lists every place the
+   launch adapter follows retail's documented shape without Forever's client having been seen to do it (the
+   `ENCOUNTER_*` and `ENCOUNTER_LOOT_RECEIVED` arguments, `ADDON_RESTRICTION_STATE_CHANGED` and its enums, the result of
+   `SendAddonMessage`, `InChatMessagingLockdown`, `GetSavedInstanceInfo`). Compare each with the probe's saved file, fix
+   `Client.lua` where they differ, and remove the mark from the ones that match.
+8. **Compare between two clients.** Run the dungeon step with two players, each with the probe, in the same party and
    pull, and keep both saved files. The contract (contract/README.md, "Loot keys" and "Two recorders of one raid")
    rests on these agreeing, so answer each:
    - **A drop's identity.** Do both clients' "identity of drop" rows (section `loot history`) give the same

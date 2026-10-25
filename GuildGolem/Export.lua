@@ -174,7 +174,7 @@ function Export.build(all)
       for i = from + 1, total do list[#list + 1] = raid.snapshots[i] end
       attendance[#attendance + 1] = {
         id = raid.id, zone = raid.zone, name = raid.name, difficulty = raid.difficulty, size = raid.size,
-        night = raid.night, leader = raid.leader, lockout = raid.lockout,
+        night = raid.night, leader = raid.leader, lockout = raid.lockout, test = raid.test,
         standby = #standby > 0 and standby or nil,
         snapshots = list,
       }

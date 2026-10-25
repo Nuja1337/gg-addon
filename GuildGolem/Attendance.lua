@@ -19,7 +19,9 @@
 -- A snapshot is { at, why, encounter?, members = { { guid, name, cls?, grp?, online, zone? } } }.
 --
 -- Where the contract is silent, the core chose (one place each, listed in docs/PLAN.md):
---   * A snapshot is recorded only in a raid instance with a group. A solo player in one records nothing.
+--   * A snapshot is recorded only in a raid instance with a group. A solo player in one records nothing. While the
+--     `testDungeons` setting is on (/gg test on), a 5-man dungeon counts as a raid instance, and its raid entry is marked
+--     `test` so the site can tell it from a real one.
 --   * One raid is one run of one instance: the player leaving the instance and coming back to the same one (same
 --     instance id and difficulty) within REJOIN_MS of the last look goes on with the same raid, with a new zone-in
 --     snapshot, instead of starting a second one, which the site would file as a second raid.
@@ -267,6 +269,8 @@ local function start(inst)
     seen = nowMs,
     snapshots = {},
   }
+  -- A dungeon recorded under the test setting says so; the export carries it to the site (contract/README.md, `test`).
+  if inst.type ~= "raid" then raid.test = true end
   if planned then
     raid.night = planned.night
     if #planned.standby > 0 then raid.standby = planned.standby end
@@ -305,6 +309,14 @@ local function combatLogging(inst)
   end
 end
 
+-- Whether the instance is one the addon records: a raid instance, or, while test recording is on (`testDungeons`, `/gg test on`),
+-- a dungeon. The setting is for trying the whole path before any raid is open; what it records is marked as a test.
+function Attendance.recordable(inst)
+  if not inst or (inst.instanceID or 0) <= 0 then return false end
+  if inst.type == "raid" then return true end
+  return inst.type == "party" and store().setting("testDungeons", false) == true
+end
+
 -- Looking ----------------------------------------------------------------------------------------------------------------------
 
 local firstLook = true   -- the first evaluation of a session decides what to do with a raid the saved file left open
@@ -314,7 +326,7 @@ local firstLook = true   -- the first evaluation of a session decides what to do
 function Attendance.evaluate()
   if not store().db() then return end
   local inst = client().instance()
-  local inRaid = inst ~= nil and inst.type == "raid" and (inst.instanceID or 0) > 0
+  local inRaid = Attendance.recordable(inst)
   if inRaid then combatLogging(inst) else loggedFor = nil end
   local grouped = client().groupKind() ~= "none"
 
@@ -420,7 +432,7 @@ function Attendance.state()
   if raid then
     out.raid = {
       id = raid.id, name = raid.name, zone = raid.zone, difficulty = raid.difficulty, size = raid.size,
-      night = raid.night, snapshots = #raid.snapshots, sent = raid.sent or 0, lockout = raid.lockout,
+      night = raid.night, test = raid.test, snapshots = #raid.snapshots, sent = raid.sent or 0, lockout = raid.lockout,
       last = raid.snapshots[#raid.snapshots] and raid.snapshots[#raid.snapshots].at or nil,
     }
   end

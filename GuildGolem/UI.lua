@@ -6,6 +6,8 @@
 --   /gg                  opens or closes the window
 --   /gg status           prints the version, the imported night, what is being recorded, the outbox and the client's gaps
 --   /gg export [all]     makes an export from what was recorded since the last one (or everything) and shows it
+--   /gg test on|off      test recording: while on, a party in a 5-man dungeon is recorded like a raid and its export is marked
+--                        as a test, so the whole path can be tried before any raid is open
 --   /gg log on|off       whether the addon turns combat logging on when you enter a raid (it never turns it off)
 --   /gg help
 --
@@ -183,6 +185,11 @@ local function clock(ms)
   return os.date("!%H:%M", ms / 1000) .. " UTC"
 end
 
+-- Whether test recording is on (the `testDungeons` setting).
+local function testing()
+  return ns.Store.setting("testDungeons", false) == true
+end
+
 -- The client's gaps: the capabilities Client.caps() says are missing.
 function UI.gaps()
   local missing = {}
@@ -212,11 +219,15 @@ function UI.statusLines()
   lines[#lines + 1] = "Guild Golem " .. tostring(ns.version)
   lines[#lines + 1] = nightLine() or "No night imported. Paste an import from guildgolem.com in /gg."
 
+  if testing() then
+    lines[#lines + 1] = "TEST RECORDING IS ON: a party in a 5-man dungeon is recorded like a raid, and its export is marked as a test. /gg test off stops it."
+  end
+
   local state = ns.Attendance.state()
   if state.recording then
     local r = state.raid
-    lines[#lines + 1] = format("Recording %s (%d players, difficulty %d): %s, the last at %s.", safe(r.name), r.size, r.difficulty,
-      plural(r.snapshots, "snapshot"), clock(r.last))
+    lines[#lines + 1] = format("Recording %s%s (%d players, difficulty %d): %s, the last at %s.", safe(r.name), r.test and " as a test" or "",
+      r.size, r.difficulty, plural(r.snapshots, "snapshot"), clock(r.last))
   else
     lines[#lines + 1] = format("Not recording. %s kept.", plural(state.raids, "raid"))
   end
@@ -257,6 +268,7 @@ function UI.statusLine()
   end
   local n = #waiting()
   if n > 0 then text = text .. " " .. plural(n, "export") .. " waiting." end
+  if testing() then text = "TEST RECORDING IS ON (dungeons count). " .. text end
   return text
 end
 
@@ -342,6 +354,7 @@ local HELP = {
   "/gg status: what the addon has and is doing",
   "/gg export: make an export of what was recorded since the last one (/gg export all: everything)",
   "/gg log on|off: whether the addon turns combat logging on when you enter a raid",
+  "/gg test on|off: test recording, for trying the addon in a 5-man dungeon: it is recorded like a raid and exported as a test",
 }
 
 function UI.slash(text)
@@ -369,6 +382,19 @@ function UI.slash(text)
     else
       say("Combat logging is turned on at zone-in to a raid: " .. (ns.Store.setting("autoLog", true) == false and "no" or "yes")
         .. ". /gg log on or /gg log off changes it. The addon never turns it off.")
+    end
+  elseif command == "test" then
+    if rest == "on" or rest == "off" then
+      if ns.Store.setSetting("testDungeons", rest == "on") then
+        say(rest == "on"
+          and "TEST RECORDING IS ON: a party in a 5-man dungeon is now recorded like a raid, and its export is marked as a test. /gg test off stops it."
+          or "Test recording is off. Only raids are recorded.")
+        UI.refresh()
+      else
+        say("That could not be saved.")
+      end
+    else
+      say("Test recording is " .. (testing() and "ON" or "off") .. ". /gg test on or /gg test off changes it.")
     end
   else
     for _, line in ipairs(HELP) do say(line) end

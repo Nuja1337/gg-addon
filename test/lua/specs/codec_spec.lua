@@ -3,7 +3,7 @@
 
 local FIXTURES = {
   "export-attendance", "export-empty", "export-loot", "export-night", "export-night-second-recorder",
-  "export-night-split-1", "export-night-split-2", "export-night-split-3", "export-night-split-4", "export-pugs",
+  "export-night-split-1", "export-night-split-2", "export-night-split-3", "export-night-split-4", "export-pugs", "export-test-dungeon",
   "import-night", "import-night-assignments", "import-night-loot", "import-priorities",
 }
 

@@ -68,6 +68,9 @@ function WOW.reset(opts)
   for i = #hiddenList, 1, -1 do hiddenList[i].owner[hiddenList[i].key] = hiddenList[i].value end
   WOW.hidden = {}
 
+  -- Frames a test named are global; they go with the test.
+  for _, name in ipairs(WOW.frameNames or {}) do _G[name] = nil end
+  WOW.frameNames = {}
   WOW.errors = {}
   WOW.catchErrors = false
   WOW.frames = {}
@@ -201,7 +204,10 @@ function CreateFrame(kind, name, parent, template)
   local frame = setmetatable({}, Frame)
   frameData[frame] = { kind = kind, name = name, parent = parent, events = {}, scripts = {}, hooks = {}, shown = true }
   WOW.frames[#WOW.frames + 1] = frame
-  if name then _G[name] = frame end
+  if name then
+    _G[name] = frame
+    WOW.frameNames[#WOW.frameNames + 1] = name
+  end
   if template == "BasicFrameTemplateWithInset" then frame.TitleText = setmetatable({}, FontString) end
   if template == "UIPanelButtonTemplate" then frameData[frame].fontString = setmetatable({}, FontString) end
   return frame

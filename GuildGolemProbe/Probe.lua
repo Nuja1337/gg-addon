@@ -160,6 +160,23 @@ local function harvestNames(value, depth)
   end
 end
 
+-- The field names of a table the client returned, sorted, for learning what identifies a drop or a winner.
+local function keysOf(value)
+  if type(value) ~= "table" or isSecret(value) then return type(value) end
+  local keys = {}
+  for k in pairs(value) do keys[#keys + 1] = tostring(k) end
+  table.sort(keys)
+  return table.concat(keys, ",")
+end
+
+-- A unit's name as the roster writes it: the first name, a space and the surname.
+local function fullName(unit)
+  local ok, name, second = pcall(UnitName, unit)
+  if not ok or type(name) ~= "string" or isSecret(name) then return nil end
+  if type(second) == "string" and not isSecret(second) and second ~= "" then return name .. " " .. second end
+  return name
+end
+
 local function registerSelf()
   noteUnit("player")
   local ok, name, second = pcall(UnitName, "player")
@@ -466,6 +483,16 @@ local function readLootHistory()
                   local fine, dropInfo = pcall(H.GetSortedInfoForDrop, id, listID)
                   record("loot history", "drop " .. tostring(listID) .. " of encounter " .. tostring(id), fine and dropInfo or ("error: " .. tostring(dropInfo)), 6, 3500)
                   if fine then harvestNames(dropInfo) end
+                  -- What names this drop, so two clients can be compared: the ids the contract's `drop` would be made
+                  -- of, the fields each call returns, and whether the winner carries a GUID.
+                  if fine then
+                    local winner = type(dropInfo) == "table" and dropInfo.winner or nil
+                    record("loot history", "identity of drop " .. tostring(listID) .. " of encounter " .. tostring(id), {
+                      encounterID = id, lootListID = listID, dropFields = keysOf(drop), infoFields = keysOf(dropInfo),
+                      winnerFields = keysOf(winner), winnerGUID = type(winner) == "table" and describe(winner.playerGUID) or "none",
+                      serverTime = type(GetServerTime) == "function" and GetServerTime() or "no API",
+                    }, 4, 1500)
+                  end
                 end
               end
             end
@@ -582,6 +609,15 @@ local function readLockouts()
   local rows = {}
   for i = 1, math.min(n, 4) do rows[#rows + 1] = pack(GetSavedInstanceInfo(i)) end
   record("lockouts", "saved", { count = n, sample = rows }, 4)
+  -- Every saved instance's lockout id (the second value), to compare between two clients and across a kill.
+  local ids = {}
+  for i = 1, math.min(n, 12) do
+    local name, lockoutId, _, difficulty, locked, _, instanceIdMostSig, isRaid = GetSavedInstanceInfo(i)
+    ids[#ids + 1] = { name = name, lockoutId = lockoutId, difficulty = difficulty, locked = locked, instanceIdMostSig = instanceIdMostSig, raid = isRaid }
+  end
+  record("lockouts", "lockout ids #" .. nextN("lockout ids"), {
+    count = n, ids = ids, where = where(), serverTime = type(GetServerTime) == "function" and GetServerTime() or "no API",
+  }, 4, 1500)
 end
 
 -- The window -------------------------------------------------------------------------------------------------------
@@ -767,7 +803,14 @@ handlers.ENCOUNTER_END = function(...)
   if type(IsEncounterInProgress) == "function" then inProgress = describe(select(2, pcall(IsEncounterInProgress))) end
   record("encounters", "end " .. describe(args[2]) .. " #" .. n, {
     args = args, inProgress = inProgress, chatLockdown = lockdown(), restrictions = restrictionStates(), clock = date("%H:%M:%S"),
+    -- The server's clock at the end of the pull, in whole seconds, and this computer's: two clients in one pull should
+    -- read the same serverTime within a second (the contract matches a kill within 90 s and an award within 10 s).
+    serverTime = type(GetServerTime) == "function" and GetServerTime() or "no API", localTime = time(), uptime = GetTime(),
   }, 4, 2500)
+  -- The saved lockout appears after a kill; ask for the list again so its id can be compared between clients.
+  after(8, function()
+    if type(RequestRaidInfo) == "function" then pcall(RequestRaidInfo) end
+  end)
   after(3, function()
     record("addon messages", "chat lockdown after a pull", lockdown())
     record("addon messages", "send after a pull", send("after", channel()))
@@ -805,7 +848,29 @@ end
 handlers.ENCOUNTER_LOOT_RECEIVED = function(...)
   local args = pack(...)
   noteName(args[5])
-  record("loot", "encounter loot received #" .. nextN("ENCOUNTER_LOOT_RECEIVED"), { args = args, clock = date("%H:%M:%S") }, 3, 1500)
+  -- The winner's name format and the quantity, and how many people in the group have exactly that full name (the
+  -- contract fills in a GUID from the roster only when it is one).
+  local winner = args[5]
+  local facts = "not a plain string"
+  if type(winner) == "string" and not isSecret(winner) then
+    local matches = fullName("player") == winner and 1 or 0
+    if IsInRaid and IsInRaid() then
+      for i = 1, GetNumGroupMembers() do
+        if fullName("raid" .. i) == winner then matches = matches + 1 end
+      end
+      -- The player is also raid<n>, so don't count them twice.
+      if fullName("player") == winner then matches = matches - 1 end
+    elseif IsInGroup and IsInGroup() then
+      for i = 1, 4 do
+        if fullName("party" .. i) == winner then matches = matches + 1 end
+      end
+    end
+    facts = { hasSpace = winner:find(" ", 1, true) ~= nil, hasDash = winner:find("-", 1, true) ~= nil, length = #winner, groupMembersWithThisName = matches }
+  end
+  record("loot", "encounter loot received #" .. nextN("ENCOUNTER_LOOT_RECEIVED"), {
+    args = args, clock = date("%H:%M:%S"), quantity = args[4], quantityType = type(args[4]), winnerName = facts,
+    serverTime = type(GetServerTime) == "function" and GetServerTime() or "no API",
+  }, 3, 1500)
 end
 
 handlers.PARTY_LOOT_METHOD_CHANGED = function()

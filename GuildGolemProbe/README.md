@@ -55,7 +55,10 @@ to type something.
 6. **Find the saved file.** It is `WTF\Account\<your account>\SavedVariables\GuildGolemProbe.lua`, in the same game
    folder that holds `Interface`. For Forever that folder is `_classic_beta_`. Rename a copy after the build and the
    date, for example `probe-<build>-<date>.lua`, and keep it.
-7. **Compare.** To see what changed against an earlier run, type
+7. **Two clients.** To check what two players' addons will agree on (the contract's matching of one raid or one award
+   recorded twice), run the dungeon step with two people in the party, each with the probe, and keep both saved files.
+   `docs/RESEARCH.md`, "Launch-day probe", lists what to compare between them.
+8. **Compare.** To see what changed against an earlier run, type
    `node tools/probe-diff.mjs older.lua newer.lua` in the repository. The section "Launch-day probe" in
    `docs/RESEARCH.md` says where to write the result down.
 
@@ -66,8 +69,9 @@ What the pass records, section by section in the results:
 | `combat logging` | Whether `LoggingCombat()` can be read and switched, and whether `advancedCombatLogging` exists, can be set, and reads back as set. Both are put back as they were |
 | `boxes` | How long `SetText` and select all took for 16, 64 and 256 KB, whether the text came back whole, whether a frame took 250 ms or more, and the length and read time of what you pasted |
 | `instance` | `GetInstanceInfo()` on entering, with the chat lockdown and restriction states |
-| `encounters` | Every argument of `ENCOUNTER_START`, `ENCOUNTER_END`, `BOSS_KILL` and `INSTANCE_ENCOUNTER_ENGAGE_UNIT`, numbered per pull |
-| `loot`, `loot history` | The loot method and master looter in a party, `ENCOUNTER_LOOT_RECEIVED`, rolls, and what the loot history functions return after a group roll |
+| `encounters` | Every argument of `ENCOUNTER_START`, `ENCOUNTER_END`, `BOSS_KILL` and `INSTANCE_ENCOUNTER_ENGAGE_UNIT`, numbered per pull. `ENCOUNTER_END` also has `serverTime` (`GetServerTime()`), the computer's `time()` and `GetTime()` |
+| `loot`, `loot history` | The loot method and master looter in a party, `ENCOUNTER_LOOT_RECEIVED` (with the winner's name format, how many group members have exactly that full name, the quantity and its type, and `serverTime`), rolls, and what the loot history functions return after a group roll. For each of the first drops, an "identity of drop" row: its `encounterID` and `lootListID`, the field names each call returns, and whether the winner has a `playerGUID` |
+| `lockouts` | The saved instances, and a numbered "lockout ids" row (name, lockout id, difficulty, locked) after each `UPDATE_INSTANCE_INFO`. The probe asks for the list again 8 seconds after each `ENCOUNTER_END`, so the row after a kill shows the new lockout |
 | `addon messages` | How many of 50 messages were accepted, how many arrived and when, what the game says to a message or prefix that is too long, and the `C_ChatInfo` results |
 | `restrictions` | `ADDON_RESTRICTION_STATE_CHANGED` and similar events, with the state of every restriction type |
 | `api`, `events` | Which functions exist in the tables that matter, and which events this client has |

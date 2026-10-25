@@ -160,6 +160,25 @@ Checklist:
 4. Add a row to the table below for the build, with the date and what changed.
 5. Update "Probe results" and "Not tested yet" above, and the feature table at the top where an answer changes it.
 6. If a call was missing or refused, note it here and in docs/PLAN.md where the addon relies on it.
+7. **Compare between two clients.** Run the dungeon step with two players, each with the probe, in the same party and
+   pull, and keep both saved files. The contract (contract/README.md, "Loot keys" and "Two recorders of one raid")
+   rests on these agreeing, so answer each:
+   - **A drop's identity.** Do both clients' "identity of drop" rows (section `loot history`) give the same
+     `encounterID` and `lootListID` for the same drop? Which fields do `GetSortedDropsForEncounter` and
+     `GetSortedInfoForDrop` return, and does the winner have a `playerGUID`? If they agree, the award's `drop` field
+     (`"<encounterID>:<lootListKey>"`) is how two recorders' awards match; if they don't, matching stays on item,
+     winner, encounter and time.
+   - **Lockout ids.** Do both clients' "lockout ids" rows show the same lockout id for the same saved instance, and does
+     it appear only after the kill? If so, `lockout` joins their raids into one run; if it differs, it is left out.
+   - **The clock.** Do both clients' `ENCOUNTER_END` `serverTime` differ by no more than a second for the same pull? The
+     matching windows (10 seconds for an award, 90 seconds for a kill) assume so. Also compare `serverTime` with
+     `localTime` on each, which is `meta.skew`.
+   - **The winner's name.** In `ENCOUNTER_LOOT_RECEIVED`, is the name written "First Surname" with a space and no
+     dash (`hasSpace`, `hasDash`), is the quantity a number (`quantityType`, `quantity`), and is
+     `groupMembersWithThisName` always 1? If it is, the winner's GUID can be filled in from the roster on an exact full
+     name; if not, the GUID is left out unless `C_LootHistory` has it.
+   - **Both agree on who won.** Is the winner in `ENCOUNTER_LOOT_RECEIVED` the same player on both clients, and the same
+     as the "identity of drop" row's winner?
 
 Results, one row per build:
 

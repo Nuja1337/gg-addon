@@ -1,0 +1,25 @@
+# What the BigWigs packager puts in the zip (release.yml runs it). Only the GuildGolem/ folder is the addon, so the
+# packager's copy of the repository is reshaped in two steps. It copies every file that is not ignored below into
+# .release/GuildGolem/, which makes the addon's own files .release/GuildGolem/GuildGolem/..., and move-folders then moves
+# those up one level. Anything at the top of the repository that is not ignored would be moved into the addon's folder
+# with them, so every other top-level file and folder is named here. test/pkgmeta.test.mjs fails when one is missing.
+# Files and folders that start with a dot (.github, .gitignore, .pkgmeta and the rest) are skipped by the packager itself.
+# The addon's LICENSE.txt, NOTICES.txt and Libs/ (with their license files) are inside GuildGolem/, so they ship.
+# The version comes from the git tag: @project-version@ in each TOC becomes the tag, such as v0.1.0-beta.
+package-as: GuildGolem
+
+move-folders:
+  GuildGolem/GuildGolem: GuildGolem
+
+ignore:
+  - GuildGolemProbe
+  - contract
+  - docs
+  - node_modules
+  - test
+  - tools
+  - LICENSE.txt
+  - LISTING.md
+  - README.md
+  - package-lock.json
+  - package.json

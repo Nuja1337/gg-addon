@@ -289,9 +289,11 @@ M1 and the site's import come first: attendance is the owner's first ask, and it
 
 - **Repo:** this one (gg-addon, moved out of the site's repo Oct 22): the addon in `GuildGolem/`, with the
   packager's `.pkgmeta`, released to CurseForge (project 1757198) and Wago (`v63QDLGb`) by
-  `.github/workflows/release.yml` when a version tag is pushed (the folder is packaged as a checkout of its own, with
-  the tag as its version, and a tag with `beta` in it uploads a beta, as the first, `v0.1.0-beta`, will; tokens in
-  the repository secrets `CF_API_TOKEN` and `WAGO_API_TOKEN`), with the TOCs above ("Ground rules from the client").
+  `.github/workflows/release.yml` when a version tag is pushed (`.pkgmeta` makes `GuildGolem/` the only folder in the
+  zip, the tag is its version, and a tag with `beta` in it uploads a beta, as the first, `v0.1.0-beta`, will; the tests
+  run first; the zip is also attached to a GitHub release; tokens in the repository secrets `CF_API_TOKEN` and
+  `WAGO_API_TOKEN`; Run workflow on the Actions tab makes the same zip with the packager's `-d` flag and uploads
+  nothing), with the TOCs above ("Ground rules from the client").
   Its TOCs carry `## X-Curse-Project-ID: 1757198` and `## X-Wago-ID: v63QDLGb`; the projects' page text is
   `LISTING.md`. Versions follow the export format, so a new format version means a new major version, and the site
   reads every format it ever shipped.

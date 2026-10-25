@@ -1,28 +1,43 @@
-# Guild Golem's in-game addon (GuildGolem/) to CurseForge and Wago Addons, when a version is tagged. The packager takes
-# the file type from the tag. One with "beta" in it uploads a beta, one with "alpha" an alpha, and any other, such as
-# `v1.0.0`, a release. The first tag is `v0.1.0-beta`, since the first file goes out as a beta (LISTING.md, "First
-# file"). It runs on those tags alone, never on a push or a pull request (test.yml checks those).
-# Projects: CurseForge 1757198, Wago v63QDLGb. Tokens: the repository secrets CF_API_TOKEN and WAGO_API_TOKEN.
+# Guild Golem's in-game addon (GuildGolem/) as a zip, built by the BigWigs packager from the repository and .pkgmeta.
+#
+# Two ways to run it:
+#   * A version tag pushed to the repository (`v0.1.0-beta`) is a release. The packager uploads the zip to CurseForge
+#     (project 1757198) and Wago (`v63QDLGb`), and the zip is attached to a GitHub release. The packager takes the file
+#     type from the tag: one with "beta" in it uploads a beta, one with "alpha" an alpha, and any other, such as
+#     `v1.0.0`, a release. The first tag is `v0.1.0-beta`, since the first file goes out as a beta (LISTING.md, "First
+#     file"). Tokens: the repository secrets CF_API_TOKEN and WAGO_API_TOKEN.
+#   * "Run workflow" on the Actions tab is a dry run. It builds the same zip with the packager's -d flag (skip
+#     uploading), needs no tokens, uploads nothing to any store or release, and keeps the zip as a workflow artifact
+#     to download and try in the game. Run it from a branch or from main; the zip's version is the commit.
+# Either way the tests run first (test.yml, reused here): the Lua 5.1 job and `npm test` must pass before anything is
+# packaged. A push to a branch or a pull request never runs this file (test.yml checks those).
 name: Release
 
 on:
   push:
     tags:
       - "v[0-9]*"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# Each action is pinned to a commit, since a tag can be moved to other code. That matters most for the packager, which
+# is third-party and gets both store tokens. To update one, pin the commit its new tag points to.
 jobs:
-  release:
+  # test.yml's two jobs: `npm test` on Node 22 and 24, and the addon's Lua on real Lua 5.1.
+  checks:
+    uses: ./.github/workflows/test.yml
+
+  package:
+    needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Each action is pinned to a commit, since a tag can be moved to other code. That matters most for the packager,
-    # which is third-party and gets both store tokens. To update one, pin the commit its new tag points to.
     steps:
       # Without a token the packager skips that store's upload and still succeeds, so a release would look done with
-      # nothing uploaded. This stops it first.
+      # nothing uploaded. This stops it first. A dry run uploads nothing, so it needs no tokens.
       - name: Both store tokens are set
+        if: github.event_name == 'push'
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
@@ -32,34 +47,75 @@ jobs:
           if [ -z "$WAGO_API_TOKEN" ]; then missing="$missing WAGO_API_TOKEN"; fi
           if [ -n "$missing" ]; then echo "::error::Missing repository secrets:$missing"; exit 1; fi
 
+      # The whole history, so the packager sees the tag and can tell a tagged commit from an untagged one.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (v4.4.0)
         with:
-          node-version: 24
+          fetch-depth: 0
 
-      # The same checks as `npm test` locally: every addon is Lua 5.1 with TOCs that list files that exist.
-      - name: Check the addons
-        run: npm ci && npm test
-
-      # The packager takes its version and files from the top of a git checkout: the addon's folder becomes a checkout
-      # of its own, tagged with the version, so the probe, docs and tests never ship.
-      - name: The addon as a checkout of its own
-        run: |
-          if [ ! -f GuildGolem/GuildGolem.toc ]; then echo "GuildGolem/GuildGolem.toc is missing"; exit 1; fi
-          version="$GITHUB_REF_NAME"
-          mkdir -p "$RUNNER_TEMP/pkg"
-          cp -r GuildGolem "$RUNNER_TEMP/pkg/GuildGolem"
-          cd "$RUNNER_TEMP/pkg/GuildGolem"
-          git init -q
-          git add -A
-          git -c user.name="Guild Golem" -c user.email="releases@guildgolem.invalid" commit -q -m "Guild Golem $version"
-          git -c user.name="Guild Golem" -c user.email="releases@guildgolem.invalid" tag -a "$version" -m "Guild Golem $version"
-          echo "ADDON_DIR=$RUNNER_TEMP/pkg/GuildGolem" >> "$GITHUB_ENV"
-
-      - uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2 (v2.6.1)
+      # The release: the packager reads .pkgmeta, builds the zip in .release/ and uploads it.
+      - name: Package and upload to CurseForge and Wago
+        if: github.event_name == 'push'
+        uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2 (v2.6.1)
         with:
-          args: -t ${{ env.ADDON_DIR }} -p 1757198 -a v63QDLGb
+          args: -p 1757198 -a v63QDLGb
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+
+      # The dry run: -d is the packager's "skip uploading". No token is passed to it.
+      - name: Package only (dry run, nothing uploaded)
+        if: github.event_name == 'workflow_dispatch'
+        uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2 (v2.6.1)
+        with:
+          args: -d
+
+      # The zip holds the GuildGolem folder and nothing else. A change to .pkgmeta that breaks that fails here.
+      - name: The zip holds GuildGolem/ alone
+        run: |
+          zips=(.release/*.zip)
+          if [ "${#zips[@]}" -ne 1 ] || [ ! -f "${zips[0]}" ]; then echo "::error::Expected one zip in .release/, found: ${zips[*]}"; exit 1; fi
+          unzip -l "${zips[0]}"
+          if unzip -Z1 "${zips[0]}" | grep -v '^GuildGolem/'; then echo "::error::The zip holds files outside GuildGolem/"; exit 1; fi
+          for f in GuildGolem/GuildGolem.toc GuildGolem/GuildGolem_Forever.toc GuildGolem/GuildGolem_Camelot.toc GuildGolem/LICENSE.txt GuildGolem/NOTICES.txt; do
+            unzip -Z1 "${zips[0]}" | grep -qx "$f" || { echo "::error::$f is not in the zip"; exit 1; }
+          done
+
+      # GitHub wraps an artifact in a zip of its own, so a download is a zip with the addon's zip inside.
+      - name: Keep the zip
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
+        with:
+          name: GuildGolem-zip
+          path: .release/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  # Attaches the zip to the tag's GitHub release, so players can get it here too. A separate job so that `contents:
+  # write` is on this one only and the packager, which is third-party, never holds it. A dry run never gets here.
+  github-release:
+    if: github.event_name == 'push'
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4 (v4.3.0)
+        with:
+          name: GuildGolem-zip
+          path: zip
+
+      - name: Create the release, or add the zip to it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          flags=""
+          case "${tag,,}" in *alpha*|*beta*) flags="--prerelease" ;; esac
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" zip/*.zip --clobber
+          else
+            # shellcheck disable=SC2086
+            gh release create "$tag" zip/*.zip --verify-tag --title "Guild Golem $tag" $flags \
+              --notes "The Guild Golem addon for WoW Forever. Unzip it into your Interface\AddOns folder so that the GuildGolem folder is inside AddOns, or install it from CurseForge or Wago Addons."
+          fi

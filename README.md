@@ -51,6 +51,8 @@ If either is missing, the release stops at its first step, before anything is pa
 Open an [issue](../../issues) here and pick "Something's wrong" or "An idea", or use Feedback on any page of
 [guildgolem.com](https://guildgolem.com).
 
-## Licence
+## License
 
-There's no licence yet, so all rights are reserved.
+All rights reserved. The addon is free to download and use, and you may read and change its code for your own use.
+You may not redistribute it. The full terms are in [LICENSE.txt](LICENSE.txt). The addon's release folder carries a copy
+of them too.

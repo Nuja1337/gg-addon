@@ -131,12 +131,15 @@ end
 -- The exports waiting --------------------------------------------------------------------------------------------------------
 
 local view = 1   -- which waiting export the copy box shows
+local newExport = false   -- an export was just made, so the next showing selects it
 
 local function waiting()
   return ns.Store.outboxPending()
 end
 
-local function showExport(w)
+-- Shows the export at `view` in the copy box. `select` selects it and puts the keyboard there, for when the player has just
+-- asked for an export or stepped to another.
+local function showExport(w, select)
   local list = waiting()
   if #list == 0 then
     w.setCopyLabel("Nothing is waiting to be pasted on the site. Press Export to make one.")
@@ -149,7 +152,7 @@ local function showExport(w)
   if view > #list then view = #list end
   if view < 1 then view = 1 end
   w.setCopyLabel(format("Export %d of %d waiting. It is selected: press Ctrl+C, then paste it on guildgolem.com.", view, #list))
-  w.setCopy(list[view].text)
+  w.setCopy(list[view].text, select)
   w.setEnabled("pasted", true)
   w.setEnabled("prev", view > 1)
   w.setEnabled("next", view < #list)
@@ -165,6 +168,7 @@ local function onExport(all)
   end
   local list = waiting()
   view = math.max(1, #list - result.count + 1)
+  newExport = true
   say(format("Made %s from %s and %s (%d characters). Open /gg to copy %s.",
     plural(result.count, "export string"), plural(result.raids, "raid"), plural(result.snapshots, "snapshot"),
     result.characters, result.count == 1 and "it" or "them"))
@@ -290,26 +294,27 @@ function UI.window()
   w.onClick("export", function() onExport(false) end)
   w.onClick("prev", function()
     view = view - 1
-    showExport(w)
+    showExport(w, true)
   end)
   w.onClick("next", function()
     view = view + 1
-    showExport(w)
+    showExport(w, true)
   end)
   w.onClick("pasted", function()
     local list = waiting()
     if list[view] then ns.Store.outboxMarkPasted(list[view].id) end
-    showExport(w)
-    UI.refresh()
+    UI.refresh(true)
   end)
   w.setEnabled("import", false)
   return w
 end
 
-function UI.refresh()
+-- Redraws the status line and the copy box. `select` is for the copy box: select it and give it the keyboard.
+function UI.refresh(select)
   if not window then return end
   window.setStatus(UI.statusLine())
-  showExport(window)
+  showExport(window, select or newExport)
+  newExport = false
 end
 
 local function toggle()
@@ -384,12 +389,13 @@ end
 
 -- The window keeps up with the recording while it is open.
 function UI.listen()
+  -- Only the status line: the copy box is not touched while someone may be reading from it.
   ns.Events.on("GG_SNAPSHOT", function()
-    if window and window.isShown() then UI.refresh() end
+    if window and window.isShown() then window.setStatus(UI.statusLine()) end
   end, "ui")
 end
 
 -- A test, or a second session in one Lua state, starts from nothing.
 function UI.reset()
-  window, failed, pending, view = nil, nil, nil, 1
+  window, failed, pending, view, newExport = nil, nil, nil, 1, false
 end

@@ -559,7 +559,10 @@ T.test("the window comes back as a handle, or as nothing and a reason", function
   w.setEnabled("nothing", false)
   w.setCopy("copy me")
   T.eq(WOW.frameState(ClientTestWindowCopy).text, "copy me")
+  T.eq(WOW.frameState(ClientTestWindowCopy).focused, false, "it does not take the keyboard unless asked")
+  w.setCopy("copy me too", true)
   T.eq(WOW.frameState(ClientTestWindowCopy).highlighted, true)
+  T.eq(WOW.frameState(ClientTestWindowCopy).focused, true)
   w.setPaste("pasted")
   T.eq(w.paste(), "pasted")
 

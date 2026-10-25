@@ -618,8 +618,9 @@ end
 --   w.setNote(text)          the line under the paste box (what was read, or why not)
 --   w.setCopyLabel(text)
 --   w.setPaste(text), w.paste()   the paste box's text, set or read
---   w.setCopy(text)          fills the copy box, selects it all and focuses it, so Ctrl+C copies it. The box gives
---                            back what it held if the player types in it
+--   w.setCopy(text, select)  fills the copy box; with `select` it also selects it all and focuses it, so Ctrl+C copies it
+--                            (it does not take the keyboard from the paste box otherwise). The box gives back what it
+--                            held if the player types in it, and selects itself all when it is clicked
 --   w.setEnabled(key, flag), w.setButtonText(key, text)
 --   w.onPaste(fn)            fn(text) runs half a second after the player stops changing the paste box
 --   w.onClick(key, fn)       fn() runs when the button is pressed
@@ -668,8 +669,8 @@ end
 
 local function buildWindow(spec)
   local width, height = spec.width or 580, spec.height or 470
-  local frame = newFrame("Frame", spec.name, UIParent, "BasicFrameTemplateWithInset")
-  if not frame.TitleText then backdrop(frame) end
+  local frame, framed = newFrame("Frame", spec.name, UIParent, "BasicFrameTemplateWithInset")
+  if not framed then backdrop(frame) end
   frame:SetSize(width, height)
   frame:SetPoint("CENTER")
   frame:SetFrameStrata("DIALOG")
@@ -693,8 +694,11 @@ local function buildWindow(spec)
   local buttons, clicks = {}, {}
   local x = 14
   for _, def in ipairs(spec.buttons or {}) do
-    local button = newFrame("Button", spec.name .. "Button" .. def.key, frame, "UIPanelButtonTemplate")
-    if not button.GetFontString then backdrop(button) end
+    local button, templated = newFrame("Button", spec.name .. "Button" .. def.key, frame, "UIPanelButtonTemplate")
+    if not templated then
+      backdrop(button)
+      button:SetNormalFontObject("GameFontNormal")
+    end
     button:SetSize(def.width or 90, 22)
     button:SetPoint("TOPLEFT", x, -340)
     button:SetText(def.label or def.key)
@@ -741,10 +745,10 @@ local function buildWindow(spec)
   function w.copyLabelText() return copyLabel:GetText() end
   function w.setPaste(text) paste:SetText(text or "") end
   function w.paste() return paste:GetText() end
-  function w.setCopy(text)
+  function w.setCopy(text, select)
     shown = text or ""
     copy:SetText(shown)
-    if shown ~= "" then
+    if select and shown ~= "" then
       copy:SetFocus()
       copy:HighlightText()
     end

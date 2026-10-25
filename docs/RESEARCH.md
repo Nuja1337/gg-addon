@@ -140,6 +140,33 @@ The owner ran GuildGolemProbe on Forever's client, alone and with a second playe
 under `Program Files`, where Battle.net installs WoW (Chromium's `kBlockPaths`). That rules out a site tab reading the
 addon's saved file (Sync, M7) or the combat log (live logging) unless WoW is moved or a desktop app does the reading.
 
+## Launch-day probe
+
+Probe 0.2 is built to answer, in one 20-minute pass on launch day (Nov 4), most of what is under "Not tested yet"
+above. It adds the combat logging switch and the `advancedCombatLogging` setting, timed copy and paste boxes of 16, 64
+and 256 KB, `GetInstanceInfo()`, the full `ENCOUNTER_START`, `ENCOUNTER_END`, `BOSS_KILL` and
+`INSTANCE_ENCOUNTER_ENGAGE_UNIT` arguments, the loot history and the loot method in a 5-man, an addon message burst
+with arrival counts, and every restriction event. It does not test a raid, which opens about Dec 9. Run it again then.
+
+Checklist:
+
+1. Install probe 0.2 and do the steps in `GuildGolemProbe/README.md`, "The launch-day pass" (open world, party, a
+   dungeon with one wipe and one kill, then `/reload`).
+2. Copy `WTF\Account\<account>\SavedVariables\GuildGolemProbe.lua` and rename the copy after the build and the date.
+3. Compare it with the earlier run: `node tools/probe-diff.mjs earlier.lua launch.lua`. A 0.1 file works as the earlier
+   one, and the sections that are new in 0.2 show as only in the second file. The tool replaces character, guild and
+   realm names and GUIDs with placeholders (Player1, Guild1, `Player-S1-1`). Read its output once anyway before it goes
+   into this repository.
+4. Add a row to the table below for the build, with the date and what changed.
+5. Update "Probe results" and "Not tested yet" above, and the feature table at the top where an answer changes it.
+6. If a call was missing or refused, note it here and in docs/PLAN.md where the addon relies on it.
+
+Results, one row per build:
+
+| Build | Date | What changed |
+|---|---|---|
+| | | |
+
 ## Sources
 
 - Gethe/wow-ui-source, branch `forever`, commit 15666a6e "1.60.1 (70245)", re-checked at 172a387e "1.60.1 (70450)": https://github.com/Gethe/wow-ui-source/tree/forever

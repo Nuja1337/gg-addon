@@ -18,6 +18,7 @@ instances (docs/RESEARCH.md, "Probe results"). The ones inside a raid are still 
 | `GuildGolem/` | The addon, once it's built |
 | `docs/PLAN.md` | What the addon will do, the text it trades with the site, and the milestones |
 | `docs/RESEARCH.md` | What Forever's client lets an addon do |
+| `tools/` | `probe-diff.mjs` compares two probe saved files and prints what changed, with names and GUIDs replaced. `GuildGolemProbe/README.md` and `docs/RESEARCH.md` ("Launch-day probe") say when to use it |
 | `LISTING.md` | The text for the CurseForge and Wago project pages |
 | `test/` | Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder (`npm test`, on Node 22 or newer). They run on every push and pull request (`.github/workflows/test.yml`) |
 

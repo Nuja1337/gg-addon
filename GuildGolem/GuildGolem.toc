@@ -1,0 +1,22 @@
+## Interface: 16001
+## Title: Guild Golem
+## Notes: Records raid attendance, loot and pugs for your guild, and brings in each night's plan from guildgolem.com. Nothing is sent by the addon itself: you copy and paste.
+## Author: Guild Golem
+## Version: @project-version@
+## SavedVariables: GuildGolemDB
+## X-Website: https://guildgolem.com
+## X-Curse-Project-ID: 1757198
+## X-Wago-ID: v63QDLGb
+
+Libs\LibStub\LibStub.lua
+Libs\LibDeflate\LibDeflate.lua
+Libs\json\json.lua
+
+Core\Base64.lua
+Core\ZlibSize.lua
+Core\Codec.lua
+Client.lua
+Core\Store.lua
+Core\Import.lua
+Core\Events.lua
+Main.lua

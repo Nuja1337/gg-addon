@@ -1,0 +1,2 @@
+# The vendored libraries keep the bytes their authors published (checked against Libs/README.md by npm test).
+GuildGolem/Libs/** -text

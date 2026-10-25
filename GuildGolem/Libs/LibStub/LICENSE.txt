@@ -1,0 +1,5 @@
+LibStub is in the public domain. This is the notice at the top of LibStub.lua, which is all the license the library
+has: the Ace3 repository it comes from has no separate license file for it.
+
+    LibStub is hereby placed in the Public Domain
+    Credits: Kaelten, Cladhaire, ckknight, Mikk, Ammo, Nevcairiel, joshborke

@@ -1,0 +1,17 @@
+Guild Golem uses three small libraries, kept in Libs/ with their own licenses. They are not changed, except that
+json.lua registers itself with LibStub (one marked block at the end of the file). Libs/README.md says where each
+came from and its version and SHA-256.
+
+LibStub
+  By Kaelten, Cladhaire, ckknight, Mikk, Ammo, Nevcairiel and joshborke.
+  Public domain. See Libs/LibStub/LICENSE.txt.
+
+LibDeflate 1.0.2-release
+  Copyright (C) 2018-2020 Haoqian He.
+  zlib License. See Libs/LibDeflate/LICENSE.txt.
+
+json.lua
+  Copyright (c) 2020 rxi.
+  MIT License. See Libs/json/LICENSE.
+
+Guild Golem's own code is covered by LICENSE.txt in this folder.

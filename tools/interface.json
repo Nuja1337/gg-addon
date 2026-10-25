@@ -1,0 +1,4 @@
+{
+  "interface": 16001,
+  "note": "The game's interface number, in one place. The tests check every TOC against it (test/toc.test.mjs, test/addons.test.mjs). When the client's number changes, change it here and in each TOC's ## Interface line."
+}

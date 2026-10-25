@@ -12,7 +12,8 @@ const require = createRequire(import.meta.url);
 const luaparse = require("luaparse");
 
 const ROOT = join(import.meta.dirname, "..");
-const INTERFACE = "16001";
+// The client's interface number lives in one place, tools/interface.json.
+const INTERFACE = String(JSON.parse(readFileSync(join(ROOT, "tools", "interface.json"), "utf8")).interface);
 
 function files(dir) {
   return readdirSync(dir).flatMap((f) => {

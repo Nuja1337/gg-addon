@@ -1,8 +1,8 @@
 // The globals check (test/lua/globals-lib.mjs): outside GuildGolem/Client.lua and GuildGolem/Libs/, the addon's Lua may
-// read and write only Lua's own globals and its own names. Until GuildGolem/ exists, the check is tested on the
-// fixtures in test/lua/fixtures/, so a check that stopped catching things would fail here.
+// read and write only Lua's own globals and its own names. The check is also tested on the fixtures in
+// test/lua/fixtures/, so a check that stopped catching things would fail here.
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { checkedFiles, findGlobals, report } from "./lua/globals-lib.mjs";
@@ -87,8 +87,14 @@ describe("GuildGolem/ keeps game calls in Client.lua", () => {
   const dir = join(ROOT, "GuildGolem");
   const files = checkedFiles(dir);
 
-  it("is checked once the addon exists", { skip: existsSync(dir) ? false : "GuildGolem/ isn't built yet" }, () => {
-    assert.ok(files.length > 0, "GuildGolem/ has Lua files to check");
+  it("has Lua files to check, and Client.lua is the one left out", () => {
+    assert.ok(files.length >= 7, `${files.length} files are checked`);
+    for (const name of ["Core/Codec.lua", "Core/Store.lua", "Core/Import.lua", "Core/Events.lua", "Main.lua"]) assert.ok(files.includes(name), name);
+    assert.ok(!files.includes("Client.lua") && !files.some((f) => f.startsWith("Libs/")));
+  });
+
+  it("finds a game call in a file that is not Client.lua, so the check is not a pass for every file", () => {
+    assert.ok(findGlobals("local ok = GetRaidRosterInfo(1)").length > 0);
   });
 
   for (const file of files) {

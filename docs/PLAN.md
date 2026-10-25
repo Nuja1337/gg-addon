@@ -14,7 +14,7 @@ differs, these win:
 - **Sync** takes the place of a desktop uploader, which is on hold. The probe has since found (Oct 22) that a
   browser tab can do this only when the game is installed outside Program Files (below, "A Sync button").
 - **On the site,** the guild bank is built already, and pug lists aren't.
-- **The string format** below stands.
+- **The string format** stands, and is now written out as contract version 1 (contract/README.md; below, "The contract with the site").
 
 ## What it's for
 
@@ -56,7 +56,7 @@ other addons").
   when it changes.
 - **Identity:** the player's GUID, guild name, and the guild's handle on the site (from the last import), so exports
   are tied to one guild.
-- **Strings:** `GG1:` + base64 of the zlib-deflated JSON of one object (below, "The string"), its Adler-32 checked
+- **Strings:** `GG1:` + base64 of the zlib-deflated JSON of one object (contract/README.md), its Adler-32 checked
   and its size limited. Imports are validated field by field before use; anything unknown is ignored, never run.
 - **Event bus** over the client's events, with a queue for anything that must wait out an encounter.
 - **UI:** a minimap button and a slash command (`/gg`) that open one window with tabs: Tonight, Attendance, Loot,
@@ -143,75 +143,57 @@ other addons").
 
 The addon and the site talk in one kind of string, both ways, and integrate with no other addon (the owner, Oct 19:
 "instead of gargul/mrt or whatever other addons, lets design these imports/exports/integrations for our own wow addon
-instead"). Its reader on the site is the site repo's `app/features/guild/addon.ts` (`addonString`, `readAddonString`), and its fixtures
-are shared with the addon's tests, so both ends agree.
+instead"). **The format is in [contract/README.md](../contract/README.md)**, version 1, with a fixture of every import
+and export in `contract/fixtures/` (each as `.json` and `.gg1.txt`). `npm test` checks the fixtures against it
+(`test/contract.test.mjs`). The site's tests read the same files, so both ends agree. It replaces the sketch that was
+here (Oct 20), and where this file still describes a field of the string, contract/README.md wins.
 
-### The string
+What the string holds, in short: `GG1:` and standard base64 of the zlib-wrapped deflate (RFC 1950) of UTF-8 JSON of one
+object with `v` (1), `kind` (`import` or `export`) and `meta`. Imports (`meta.from`: `priorities`, `night-loot`,
+`night-assignments`, `night`) carry `guild`, `night`, `people` and `raids[]`: each raid with its instance id, effort
+level, picks, groups, bench, loot priorities and assignments. Exports carry `attendance` (snapshots grouped by raid),
+`loot` (each with a `dedupe` key) and `pugs`.
 
-- **`GG1:`, then base64 of the zlib-deflated UTF-8 JSON of one object.** Base64 is the standard alphabet (RFC 4648)
-  without line breaks; zlib (RFC 1950) carries an Adler-32, so a string cut short or mistyped in pasting fails as one
-  instead of reading wrong.
-- **Why JSON, not LibSerialize:** the site writes and reads it with what browsers and Workers have built in
-  (`CompressionStream("deflate")`, `JSON`); the addon reads it with three small MIT libraries (LibDeflate's
-  `DecompressZlib`, a base64 decoder, rxi's json.lua); and a decoded string is readable when something goes wrong.
-- **`v`, the format version** (1). The addon refuses a version it doesn't know ("Update the addon"); the site reads
-  every version it ever shipped. A new field is not a new version: both ends ignore what they don't know.
-- **`kind`:** `import` (site to addon) or `export` (addon to site). Every other part is optional.
-- **Keys:** people by the site's person id (`p`), characters by GUID once known and their full name until then, items
-  by the pack's item id, bosses by the game's encounter id. Names are labels, never keys (Forever's carry surnames, and
-  there is one mega-realm).
-- **Size:** an import is a few KB. The site refuses a pasted export past 1 MB unpacked.
+### What is decided, and what is a proposal
 
-### Import (site to addon)
+**Decided** (the site's code makes it today, an earlier decision here says so, or it follows):
+- The packing: `GG1:`, standard base64 with padding, zlib-wrapped deflate (what the site writes now, not raw deflate),
+  UTF-8 JSON; readers strip whitespace.
+- `v` is an integer that changes only for a break. New fields, parts and `meta.from` values never change it. Readers
+  ignore unknown fields. The addon refuses a newer `v` with "Update the addon", the site with "The site is behind", and
+  both read older ones.
+- Keys: players by GUID (names are labels, "First Surname"), items by id, bosses by encounter id, raids by instance
+  id, times in epoch ms. The addon takes times from the server clock.
+- The 1 MiB limit on unpacked JSON (the site's today).
+- The four imports and their parts. A night is `raids[]`, and everything that differs by raid (effort, picks, groups,
+  bench, loot, assignments) sits in that raid's entry.
+- The export's three parts, their fields, and `how` (the eight values the site's ledger takes).
+- `meta`: `made`, `site`, `latest` (imports); `id`, `addon`, `client` (exports).
 
-"Copy for the addon", wherever the plan is kept. Each copy carries the parts its page holds:
+**Proposals for the owner:**
+1. **The loot dedupe key.** The site has a place for a key and no recipe. Proposed: `L1|item|winner|seconds|encounter|n`,
+   joined and not hashed (contract/README.md, "The loot dedupe key").
+2. **The ids:** an export's `meta.id` (`<made in base 36>.<8 random hex digits>`) and a raid's `id` in `attendance`
+   (`<recorder's GUID>:<instance id>:<epoch seconds of the first snapshot>`).
+3. **Written size limits:** 65,536 characters of text and 768 KiB of JSON, and how a long night is kept under them
+   (drop repeated interval snapshots, thin the rest, then one string for each raid). The text limit waits on the
+   launch-day probe's paste boxes (docs/RESEARCH.md).
+4. **`meta.by`** is whoever recorded the export, not the raid leader (the leader may not run the addon).
+5. **`meta.site`** as the date of the site's deploy.
+6. **The site refuses an export tied to another guild** (`meta.guild`).
+7. **Open enums:** a `how` the reader doesn't know is read as `other` (so `hard` and `bid` can be added for M5
+   without a new `v`), and an unknown snapshot `why` is read as `interval`.
+8. **`standby`:** a raid's list of GUIDs the leader marked on standby, never in the snapshots.
+9. **Loot winners:** `guid` is optional (the loot events give names), and the addon fills it from the raid roster when
+   the name matches.
 
-| Copied from | Parts |
-|---|---|
-| Loot › Priorities (the raid on show) | `guild`, `raid`, `people` (each by their main), `loot` |
-| A night's Loot | `guild`, `night`, `people` (by the character each answered with), `loot` (those coming) |
-| A night's page (M2) | all of them: `night` with its groups and bench, `people`, `loot`, `points`, `pugs`, `assignments` |
-| A night's Assignments (round 28, stage 5; `from: "night-assignments"`) | `guild`, `night`, `raid`, `people` (by the character that does each slot), `assignments` (a strat for officers only stays on the site) |
+**Left to the site, not in the contract:** how it merges two officers' attendance for one raid, and whether it flags
+awards for the same item and winner within a minute as probable repeats.
 
-```json
-{
-  "v": 1,
-  "kind": "import",
-  "at": 1760918400000,
-  "from": "night-loot",
-  "guild": { "handle": "abcd2345", "name": "Molten Raiders" },
-  "night": { "handle": "efgh6789", "title": "Naxx, team A", "startsAt": 1760925600000, "size": 40, "groups": [[12, 7], [9]], "bench": [3] },
-  "raid": { "zone": "Naxxramas" },
-  "people": [{ "p": 12, "name": "Vex", "chars": [{ "name": "Vex Moonwhisper", "cls": "mage", "guid": "Player-6103-029CF08B" }] }],
-  "loot": { "items": [{ "id": 22812, "key": true, "specs": [["mage:1", "warlock:3"], ["priest:3"]], "order": [[12], [7, 9]], "note": "" }] },
-  "assignments": [{ "encounter": 1120, "boss": "Thaddius", "lists": [{ "name": "Tanks", "slots": [{ "label": "Left platform", "p": [7], "note": "Pull him to the left" }, { "label": "Right platform", "p": [] }] }] }]
-}
-```
-
-| Part | Fields |
-|---|---|
-| `guild` | handle, name |
-| `night` | handle, title, starts at, raid size, `groups` (subgroups 1–8, person ids), `bench` |
-| `raid` | the zone the copy is of |
-| `people` | `p`, name, rank, `chars` (name, class, GUID when known): the character the plan names first |
-| `loot.items` | `id`; `order`, places best first, each place's people (a tie shares one); `key`, one of the raid's key items; `specs`, the spec order (tiers of `class:tab`, best first; on an open roll the first tier anyone in the raid plays rolls first); `free`, an open roll; `hard`, a hard reserve's person (0: the guild's); `note` |
-| `points` | for DKP or EPGP: the system, each person's standing (DKP, or EP and GP), the minimum bid and its step, items' GP (M5) |
-| `pugs` | GUID or name, list (white or black), note (M3) |
-| `assignments` | per boss (`encounter`, left out for what the game has none for: trash, a pull the guild named; `boss`): named `lists` of `slots`, each a `label`, its people (`p`, empty when nobody fits tonight) and an optional `note`, as the night filled them from its groups (app/features/guild/assignments.ts). The addon shows each player their own slots when the boss is targeted or pulled, and the leader the whole sheet; nothing goes to chat |
-
-### Export (addon to site), one per raid
-
-"Paste from the addon" on the night's page, checked and previewed before it's saved. The same string, `kind: "export"`:
-
-| Part | Fields |
-|---|---|
-| `meta` | addon version, guild handle, night handle (from the import), the leader's GUID, when it was made |
-| `snapshots` | when, why (zone-in, pull, kill, wipe, interval, leave), encounter id, members (GUID, name, class, subgroup, online, zone) |
-| `loot` | the ledger (above, "Loot") |
-| `pugs` | every pug seen: GUID, name, class, when |
-| `bank` | log lines since the cursor, the latest snapshot |
-
-Every part is optional, so a raid with no loot or a bank-only export still imports.
+**Changes from the string the site makes today** (nothing has shipped; it is locked until the addon is out): `at`
+becomes `meta.made`, `from` becomes `meta.from`, `meta.site` and `meta.latest` are new, `raid` and the per-raid parts
+become `raids[]`, a missing GUID or class is left out instead of `null`, and `night.groups` and `night.bench` (in the
+sketch, never sent) are per raid.
 
 ### Instead of other addons
 

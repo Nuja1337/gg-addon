@@ -16,16 +16,18 @@ instances (docs/RESEARCH.md, "Probe results"). The ones inside a raid are still 
 |---|---|
 | `GuildGolemProbe/` | A small test addon that records what Forever's client allows. Its README explains how to run it |
 | `GuildGolem/` | The addon, once it's built |
-| `docs/PLAN.md` | What the addon will do, the text it trades with the site, and the milestones |
+| `contract/` | The strings the addon and the site trade (`README.md`, version 1) and a fixture of each, as JSON and as a `GG1:` string |
+| `docs/PLAN.md` | What the addon will do and the milestones, and which parts of the contract are decided or still proposals |
 | `docs/RESEARCH.md` | What Forever's client lets an addon do |
 | `tools/` | `probe-diff.mjs` compares two probe saved files and prints what changed, with names and GUIDs replaced. `GuildGolemProbe/README.md` and `docs/RESEARCH.md` ("Launch-day probe") say when to use it |
 | `LISTING.md` | The text for the CurseForge and Wago project pages |
-| `test/` | Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder (`npm test`, on Node 22 or newer). They run on every push and pull request (`.github/workflows/test.yml`) |
+| `test/` | The contract's fixtures against its spec (`contract.test.mjs`). Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder (`npm test`, on Node 22 or newer). They run on every push and pull request (`.github/workflows/test.yml`) |
 
 ## Working with the site
 
-The addon and the site trade one kind of text string. Its format is in docs/PLAN.md ("The contract with the site").
-The site's side lives in the site's own repository, which is private. Both follow the format in docs/PLAN.md.
+The addon and the site trade one kind of text string. Its format is in contract/README.md, with fixtures in
+contract/fixtures/ that `npm test` checks. The site's side lives in the site's own repository, which is private. Both
+follow the contract, and the site's tests read the same fixtures.
 
 ## Releasing
 

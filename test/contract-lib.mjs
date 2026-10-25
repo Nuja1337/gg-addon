@@ -294,6 +294,7 @@ function exportParts(c, o) {
       c.str(r, "night", path, false, { re: HANDLE });
       c.guid(r, "leader", path, false);
       c.int(r, "lockout", path, false, { min: 1 });
+      c.bool(r, "test", path, false);
       const standby = c.get(r, "standby", path, false);
       if (standby !== undefined)
         c.array(standby, `${path}.standby`, (m, mp) => {
@@ -423,6 +424,7 @@ export function normalize(object) {
     for (const i of r.loot?.items ?? []) for (const flag of ["key", "free"]) if (i[flag] === false) delete i[flag];
   }
   for (const r of o.attendance ?? []) {
+    if (r.test === false) delete r.test;
     for (const s of r.snapshots) if (!WHY.includes(s.why)) s.why = "interval";
     r.snapshots.sort((a, b) => a.at - b.at);
   }

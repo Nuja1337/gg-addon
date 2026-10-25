@@ -32,7 +32,7 @@ describe("the fixtures", () => {
       imports.map((n) => n.replace("import-", "")).sort(),
       ["night", "night-assignments", "night-loot", "priorities"],
     );
-    assert.deepEqual(exports_, ["export-attendance", "export-empty", "export-loot", "export-night", "export-night-second-recorder", "export-night-split-1", "export-night-split-2", "export-night-split-3", "export-night-split-4", "export-pugs"]);
+    assert.deepEqual(exports_, ["export-attendance", "export-empty", "export-loot", "export-night", "export-night-second-recorder", "export-night-split-1", "export-night-split-2", "export-night-split-3", "export-night-split-4", "export-pugs", "export-test-dungeon"]);
     assert.deepEqual([...new Set(imports.map((n) => json(n).meta.from))].sort(), [...FROM].sort());
   });
 

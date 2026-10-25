@@ -70,7 +70,7 @@ goes wrong. The Adler-32 makes a string cut short or mistyped in pasting fail as
   but those three is optional unless a table below says it's required.
 - **Numbers are integers** (no fractions, no exponents) with an absolute value under 10^14. The addon's JSON library
   writes numbers with 14 digits, and a time in milliseconds has 13.
-- **Booleans** are `true` and `false`. Flags that are only ever true (`key`, `free`, `offspec`) are left out instead of
+- **Booleans** are `true` and `false`. Flags that are only ever true (`key`, `free`, `offspec`, `test`) are left out instead of
   written `false`, and a reader reads a `false` as absent.
 - **No `null`.** The addon's Lua has no null, so a writer leaves out a field that has no value. A reader treats `null`
   as the same as absent.
@@ -237,6 +237,7 @@ A raid here means one run of one instance by one group. Two lockouts on the same
 | `night` | string, optional | The site's handle of the night this raid was run for, from the import. With `zone` it names one raid of a night. Left out when the addon was not given one |
 | `leader` | string, optional | The raid leader's GUID at zone-in |
 | `lockout` | integer, optional | The saved lockout's id from `GetSavedInstanceInfo`, once the raid is saved |
+| `test` | `true`, optional | The addon recorded this run under its test setting (`/gg test on`), which makes it record a party in a 5-man dungeon like a raid, so the addon can be tried before any raid is open. `zone` is then a dungeon's instance id and `size` is 5. The site keeps the entry apart from real raids (it should not count it as attendance) and may drop it. Left out for a real raid. Added after the first draft of version 1, as any optional field may be |
 | `standby` | list of objects, optional | People the leader marked "on standby" for this raid: `guid` and `name` (required), `cls` (optional). They count as there, and are not in the snapshots |
 | `snapshots[]` | required, at least one | Any order; a reader sorts them by `at`. A snapshot is identified by its raid `id` and its `at`; the same pair twice is the same snapshot, so a raid may be sent in pieces that share its `id` |
 
@@ -473,6 +474,7 @@ players. The guild is "Molten Raiders", and every GUID is `Player-9101-0F00AA11`
 | `export-attendance` | One raid's snapshots, with a disconnect and a person on standby |
 | `export-loot` | Six awards, including two of the same token to the same player (`...|1` and `...|2`) and a disenchant |
 | `export-pugs` | Two pugs |
+| `export-test-dungeon` | A 5-man dungeon recorded under the addon's test setting: one raid entry with `test: true`, a wipe and a kill |
 | `export-night` | A night of three raids, with a disconnect in the first, a person on standby, a pug in the third, awards of every kind including a winner with no GUID, a trade, a count of three and an off-spec roll, and the pugs |
 | `export-night-second-recorder` | The same night from another player's addon: its own raid ids, every time a second later, so its loot keys differ from `export-night`'s, and a `meta.skew` |
 | `export-night-split-1` to `-4` | `export-night` cut for size: a string for each raid, then one for the loot and pugs, each with its own `meta.id` |

@@ -27,6 +27,7 @@
   "$.attendance[].standby[].cls": "string",
   "$.attendance[].standby[].guid": "string",
   "$.attendance[].standby[].name": "string",
+  "$.attendance[].test": "boolean",
   "$.attendance[].zone": "integer",
   "$.guild": "object",
   "$.guild.handle": "string",

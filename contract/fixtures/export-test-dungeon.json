@@ -1,0 +1,97 @@
+{
+  "v": 1,
+  "kind": "export",
+  "meta": {
+    "id": "mgq1k2zt.7be40d19",
+    "made": 1796850300000,
+    "addon": "0.1.0-beta",
+    "client": {"version":"1.60.1","build":70532,"interface":16001,"locale":"enUS"},
+    "by": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"},
+    "realm": "Classic Beta PvP",
+    "guildName": "Molten Raiders",
+    "guild": "abcd2345"
+  },
+  "attendance": [
+    {
+      "id": "Player-9101-0F00AA11:801:1796846700",
+      "zone": 801,
+      "name": "Cinder Hollow",
+      "difficulty": 1,
+      "size": 5,
+      "test": true,
+      "leader": "Player-9101-0F00AA11",
+      "snapshots": [
+        {
+          "at": 1796846700000,
+          "why": "zonein",
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Cinder Hollow"}
+          ]
+        },
+        {
+          "at": 1796847000000,
+          "why": "pull",
+          "encounter": 9001,
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Cinder Hollow"}
+          ]
+        },
+        {
+          "at": 1796847180000,
+          "why": "wipe",
+          "encounter": 9001,
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":false},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Cinder Hollow"}
+          ]
+        },
+        {
+          "at": 1796847420000,
+          "why": "pull",
+          "encounter": 9001,
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Cinder Hollow"}
+          ]
+        },
+        {
+          "at": 1796847660000,
+          "why": "kill",
+          "encounter": 9001,
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Cinder Hollow"}
+          ]
+        },
+        {
+          "at": 1796847900000,
+          "why": "leave",
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Cinder Hollow"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Cinder Hollow"}
+          ]
+        }
+      ]
+    }
+  ]
+}

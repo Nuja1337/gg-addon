@@ -6,25 +6,36 @@ assignments from the site.
 
 ## Status
 
-Not released yet. The core of the addon is built in `GuildGolem/` (Oct 25): the codec for the site's strings, the saved
-variables, the imports, the launch adapter that is the one file to name the game's functions, and the event bus. All of
-it is tested outside the game. The roster snapshots, the export and the window come next (docs/PLAN.md, M1). Which
-lines still follow retail's documented shape and wait for the launch-day pass on Forever's client are marked
-`unverified on Forever` in `GuildGolem/Client.lua`. The probe answered several in-game questions on Oct 22, outside
-instances (docs/RESEARCH.md, "Probe results"). The ones inside a raid are still to run.
+Not released yet. Milestone M1, core and attendance, is built in `GuildGolem/` (Oct 25) and tested outside the game: the
+codec for the site's strings, the saved variables, the imports, the launch adapter that is the one file to name the
+game's functions, the event bus, and now the roster snapshots of a raid (zone-in, every pull and its kill or wipe, every
+five minutes, leaving), the export string with the contract's size rules, and a small window with `/gg` to paste an
+import and copy an export. It turns combat logging on when you enter a raid. It has not run in the game yet: the
+first run is the "M1 smoke test in game" in docs/RESEARCH.md, and recording needs a raid instance, which Forever
+opens about Dec 9. Which lines still follow retail's documented shape and wait for the launch-day pass on Forever's
+client are marked `unverified on Forever` in `GuildGolem/Client.lua`. The probe answered several in-game questions on
+Oct 22, outside instances (docs/RESEARCH.md, "Probe results"). The ones inside a raid are still to run.
+
+## Using it
+
+`/gg` opens the window. Paste an import from guildgolem.com into the top box: it says what it read, or why it cannot, and
+**Import** keeps it. In a raid the addon records on its own. **Export** (or `/gg export`) makes the string of what was
+recorded since the last export and shows it, selected, in the lower box: press Ctrl+C and paste it on the site, then press
+**Pasted on the site**. `/gg status` says what the addon has and does, `/gg log off` stops it turning combat logging on
+when you enter a raid (it never turns it off).
 
 ## What's here
 
 | Path | What's in it |
 |---|---|
 | `GuildGolemProbe/` | A small test addon that records what Forever's client allows. Its README explains how to run it |
-| `GuildGolem/` | The addon: three TOCs (`_Forever`, `_Camelot` and a plain one), `Client.lua` (the only file that names the game), `Core/` (`Codec`, `Base64`, `ZlibSize`, `Store`, `Import`, `Events`), `Main.lua`, and `Libs/` with LibStub, LibDeflate and json.lua, their licenses and checksums (`Libs/README.md`). `LICENSE.txt` and `NOTICES.txt` ship with it. This is the folder a release packages |
+| `GuildGolem/` | The addon: three TOCs (`_Forever`, `_Camelot` and a plain one), `Client.lua` (the only file that names the game), `Core/` (`Codec`, `Base64`, `ZlibSize`, `Store`, `Import`, `Events`), `Attendance.lua` (the snapshots), `Export.lua` (the export string), `UI.lua` (the window and `/gg`), `Main.lua`, and `Libs/` with LibStub, LibDeflate and json.lua, their licenses and checksums (`Libs/README.md`). `LICENSE.txt` and `NOTICES.txt` ship with it. This is the folder a release packages |
 | `contract/` | The strings the addon and the site trade (`README.md`, version 1) and a fixture of each, as JSON and as a `GG1:` string |
 | `docs/PLAN.md` | What the addon will do and the milestones, and which parts of the contract are decided or still proposals |
 | `docs/RESEARCH.md` | What Forever's client lets an addon do |
 | `tools/` | `interface.json` holds the client's interface number, the one place the tests read it from. `probe-diff.mjs` compares two probe saved files and prints what changed, with names and GUIDs replaced. `GuildGolemProbe/README.md` and `docs/RESEARCH.md` ("Launch-day probe") say when to use it |
 | `LISTING.md` | The text for the CurseForge and Wago project pages |
-| `test/` | The contract's fixtures against its spec (`contract.test.mjs`). Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder, that the three TOCs of `GuildGolem/` agree (`toc.test.mjs`), that the libraries are the files their README names (`libs.test.mjs`), and that the addon's codec and the reference JavaScript read each other's strings (`codec.test.mjs`) (`npm test`, on Node 22 or newer). They run on every push and pull request (`.github/workflows/test.yml`). `test/lua/` is a harness that runs the addon's Lua in Node, with the game's functions stubbed: a Lua 5.1 shim, fengari (a Lua VM in JavaScript), a fake clock and roster, specs for every module of the addon, and a check that only `GuildGolem/Client.lua` calls the game. Its README says how to write a test. CI also runs the same Lua tests on real Lua 5.1 |
+| `test/` | The contract's fixtures against its spec (`contract.test.mjs`). Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder, that the three TOCs of `GuildGolem/` agree (`toc.test.mjs`), that the libraries are the files their README names (`libs.test.mjs`), and that the addon's codec and the reference JavaScript read each other's strings (`codec.test.mjs`). A scripted raid night (forty players, three raids, four hours) is played through the addon and its export read by the reference validator (`night.test.mjs`), and the addon's size rules are compared with the reference's (`export-fit.test.mjs`) (`npm test`, on Node 22 or newer). They run on every push and pull request (`.github/workflows/test.yml`). `test/lua/` is a harness that runs the addon's Lua in Node, with the game's functions stubbed: a Lua 5.1 shim, fengari (a Lua VM in JavaScript), a fake clock and roster, specs for every module of the addon, and a check that only `GuildGolem/Client.lua` calls the game. Its README says how to write a test. CI also runs the same Lua tests on real Lua 5.1 |
 
 ## Working with the site
 

@@ -3,7 +3,8 @@
 What the Guild Golem addon is made of, how it talks to the site, and the order to build it in. It started as **a plan,
 not a build** (owner, Oct 8: "draft me a plan for our warcraft addon and what it needs to consist of - dont build it
 yet"). **Building began Oct 25 with the core** (the codec, the saved variables, the imports, the launch adapter and the
-event bus, in `GuildGolem/`; below, "What the core is"); the rest is still this plan. What
+event bus, in `GuildGolem/`; below, "What the core is") **and M1 followed** (the attendance snapshots, the export and the
+window); the rest is still this plan. What
 Forever's client allows is in docs/RESEARCH.md; this plan rests on it and must be re-checked against the client before
 each milestone, since it changes weekly.
 
@@ -140,7 +141,9 @@ did for the site (Gargul's priorities, MRT's notes) is its own (below, "Instead 
 
 ### Settings
 - Which modules are on, the five-minute snapshot interval, whether pug warnings sound, which loot method the guild
-  uses, and how much to keep (raids older than a month are dropped once exported).
+  uses, and how much to keep (raids older than a month are dropped once exported). **Built in M1:** whether combat
+  logging is turned on at zone-in to a raid (`autoLog`, on by default, `/gg log on|off`); the rest wait for their
+  milestones.
 
 ## The contract with the site
 
@@ -272,7 +275,7 @@ game writes those to disk when the interface reloads (or on logout). So the call
 | | Milestone | Done when |
 |---|---|---|
 | M0 | **In-game tests** (docs/RESEARCH.md, "To test in game") | Name formats, guild bank on or off, loot methods and master loot, secret restrictions in raid zones: answered on the live client |
-| M1 | **Core and attendance** | The addon records a raid's snapshots and exports them; the site imports them as attendance. **First part done (Oct 25): the core.** `Core/Codec.lua` reads and writes the strings, `Core/Store.lua` keeps the saved variables with migrations and an outbox, `Core/Import.lua` reads the four imports, `Client.lua` is the launch adapter and `Core/Events.lua` the event bus, with specs. **Still to do:** the roster snapshots at zone-in, every pull and the end, the export (`fit`, the size rules) and the window to paste it from |
+| M1 | **Core and attendance** | The addon records a raid's snapshots and exports them; the site imports them as attendance. **Built (Oct 25), not yet run in the game.** `Core/Codec.lua` reads and writes the strings, `Core/Store.lua` keeps the saved variables with migrations and an outbox, `Core/Import.lua` reads the four imports, `Client.lua` is the launch adapter and `Core/Events.lua` the event bus. `Attendance.lua` takes the snapshots (zone-in, pull, kill, wipe, every five minutes, leave), `Export.lua` makes the export with the contract's `fit`, and `UI.lua` is the window and `/gg`. It turns combat logging on at zone-in to a raid. A scripted night of forty players in three raids over four hours exports 37 snapshots in one string of about 4.5 KB that the reference validator accepts (`test/night.test.mjs`). **What is left is the first run in the game**, "M1 smoke test in game" in docs/RESEARCH.md: inside a raid instance (Forever opens its first about Dec 9), what `GetInstanceInfo`, `GetRaidRosterInfo` and the `ENCOUNTER_*` events give, whether the roster's zone for a player inside is the instance's name, whether the edit boxes take a 64 KB string, and that the site's import reads what the addon wrote |
 | M2 | **Tonight** | Import the plan; invite the raid and arrange its groups in one click each; each player's assignments for the boss |
 | M3 | **Pugs** | Pug lists in game with warnings; pugs seen flow back to the site |
 | M4 | **Loot recording and seeding** | Every drop, trade and disenchant in the export; reserves and priorities in tooltips and the loot window |
@@ -315,8 +318,11 @@ file that names the game.
 | `Core/Store.lua` | `GuildGolemDB` with a `schema` (1) and forward-only migrations, a capped error list, and the outbox of exports not yet pasted, which nothing drops. A table from a newer addon is left as it is, with a warning, and the session works on a scratch copy |
 | `Core/Import.lua` | Reads the four imports into the store by the reader rules (unknown fields ignored, unknown enums read as their default, unknown people ignored, a missing required field refuses the whole string and names it) |
 | `Core/Events.lua` | The event bus: handlers under pcall (an error is recorded and never breaks the others), and addon messages queued through an encounter, a lockdown or the client's rate limit, sent after `ENCOUNTER_END` or when a restriction clears |
+| `Attendance.lua` (M1) | Records a raid's roster snapshots into `db.raids` as the contract's attendance entries: at zone-in to a raid instance (with a group), at `ENCOUNTER_START` and `ENCOUNTER_END` with the boss's id and kill or wipe, every five minutes by a timer, and on leaving the instance or the group. Each raid also has the instance, difficulty, size, the raid leader at zone-in, the lockout once the game has one, the bench from the import as `standby` and the night's handle when an import plans this instance. Turns combat logging on at zone-in, if the client can and the player has not said no |
+| `Export.lua` (M1) | Builds an export of what was recorded since the last one (or all of it), with `meta` and the pugs (players in the snapshots who are not on the imported roster), fits it to the writers' limits with the contract's `fit`, packs it with the codec, puts it in the outbox and marks the raids as covered |
+| `UI.lua` (M1) | `/gg`: the window (a paste box with a preview or the reader's refusal, a copy box with the export selected, a status line) and `/gg status`, `/gg export [all]`, `/gg log on\|off`. It names no frame: `Client.window` builds the window from a description, so `Client.lua` is still the only file that touches the game |
 
-**What the core chose where the contract is silent** (each is one place in the code, easy to change):
+**What the core chose where the contract is silent** (each is one place in the code, easy to change; M1's choices follow in the next list):
 1. **How the imports of one night combine.** Kept by the night's handle; each part of a raid (loot, assignments, groups
    and so on) is replaced by an import of the same or a newer `meta.made`, never by an older one, and a whole `night`
    string replaces the night and drops the raids it doesn't list. A person's name comes from the newest import and their
@@ -328,6 +334,54 @@ file that names the game.
 4. **`meta` as an empty list.** json.lua cannot tell `[]` from `{}`, so `"meta": []` passes the codec and is refused by
    the import for lacking `from`. json.lua also reads a trailing comma and hex numbers, which strict JSON does not.
    Neither can come from a writer that follows the contract.
+
+**What M1 chose where the contract is silent** (`Attendance.lua` unless it says otherwise; the numbers are constants at its top):
+1. **Where it records.** Only in a raid instance (`GetInstanceInfo`'s type is `raid`) with a group (a raid or a party). A
+   solo player in one records nothing. A 5-man dungeon records nothing, so until Forever opens its first raid the
+   recording itself cannot be tried in game.
+2. **One raid, or two.** A player who leaves the instance and comes back to the same one (same instance id and difficulty)
+   within 30 minutes goes on with the same raid entry, with another `zonein` snapshot, because a second entry from the
+   same recorder would be a second raid on the site. After 30 minutes, or into another instance or difficulty, it is a new
+   raid. A `/reload` in the raid goes on with it too. A login anywhere else ends a raid the last session left open,
+   with no `leave` snapshot (nobody knows when the player left; the site closes it at the end of its raid day).
+3. **Leaving the group** takes a `leave` snapshot with whoever the roster then shows, which is nobody: `members` is the
+   empty list the contract allows. Leaving the instance with the group takes a full one, whose `zone` labels show where
+   each player went.
+4. **"In the instance or not"** is each member's `zone` label from the roster (the contract has no flag for it): the site
+   compares it with the raid's `name`. Whether the roster's zone for a player inside is the instance's name is the
+   first thing to check in game.
+5. **Two snapshots never share a second** (the site keys a snapshot by raid `id` and `at`). An `interval` that would is
+   dropped; any other kind is moved one second later than the one before.
+6. **Repeats are dropped at record time.** An `interval` snapshot whose people, online states, zones and subgroups match
+   the one before it (of any kind) is not kept, which is the contract's `fit` step 1 done early to keep the saved file
+   small. The export's `fit` still runs step 1 and finds nothing more to drop.
+7. **The night.** An imported night that starts within a day of now and plans the instance (or has a raid with no zone)
+   names the raid: the nearest wins. Its bench becomes `standby`, by the pick for that raid or else the person's first
+   character; a benched character whose GUID the import does not know is left out, since `guid` is required. A benched
+   player who then came into the group is in the snapshots and not in `standby`.
+8. **Pugs** are the players in the exported snapshots who are on none of the imports' rosters (by GUID, or by exact name where
+   the import knows only the name) and are not the recorder. With nothing imported there is no roster, so no pugs.
+   Whether someone is in the guild (`GetGuildInfo` per unit) is not asked in M1.
+9. **The export's marks.** A raid keeps `sent`, the count of its snapshots an export covered. The next export holds the
+   rest, as a piece of the same raid `id`. `/gg export all` repeats everything, with a new `meta.id`. `meta.night` is
+   the handle of the night most recently imported. `meta.skew` is the server's clock less `time()`.
+10. **Packing.** `Codec.LEVEL` is 8. LibDeflate's default level leaves an export a third larger than zlib's does (the
+    roster repeats from one snapshot to the next and the higher levels find it); at 8 it is within about 10% of Node's zlib on
+    these exports and takes well under a second for a night. Readers do not care how a stream was made.
+11. **Ids.** `meta.id` is `<made in base 36>.<8 hex digits>` from a small generator seeded with the time, the uptime, the
+    player and a count, so the game's `math.random` is left alone. A piece of a cut export is `<id>.<n>`. A raid's `id` is
+    `<recorder's GUID>:<instance id>:<epoch seconds of its first snapshot>`, as proposed.
+12. **The outbox.** An export waits there until the officer presses "Pasted on the site", which marks it (it is kept a
+    month and then goes). Nothing else drops it. The window steps through what waits, newest first.
+13. **Combat logging.** `LoggingCombat(true)` once per entry to a raid instance, when it is available, the saved option
+    `autoLog` is not `false` (`/gg log off`) and it is not on already; one line in chat says so. Nothing in the addon calls
+    it with `false`; a spec reads `Client.lua` to keep it so.
+14. **A raid of the saved file** older than 30 days and fully exported is dropped at login (`Attendance.prune`).
+
+**Contract questions M1 raised** (the contract still reads as it did; none changed it): the `leave` snapshot with an empty
+`members` (3); a flag for "in the instance" in place of reading `zone` (4); what a recorder who leaves and re-enters an
+instance should send (2: one raid, or two that the site joins, which the contract says a recorder's own entries never are);
+and whether a `standby` entry may leave `guid` out for a character the import knows by name only (7).
 
 ## Open questions for the owner
 

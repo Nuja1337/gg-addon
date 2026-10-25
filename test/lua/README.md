@@ -11,14 +11,15 @@ Node (`npm test`) and, in CI, on real Lua 5.1, against stand-ins for the parts o
 | `compat51.lua` | Gives a 5.3 state what Lua 5.1 had and 5.3 dropped. It does nothing on real 5.1 |
 | `wow.lua` | The game's globals, driven by data the test sets (below) |
 | `harness.lua` | A small test framework (`T.test`, `T.eq`, `T.same`, `T.truthy`, `T.raises`) that runs the same on both VMs |
-| `specs/*.lua` | Tests written once in Lua: a spec for each module of the addon (`codec`, `base64`, `zlibsize`, `store`, `import`, `client`, `events`) and for the stubs themselves. `npm test` runs each under fengari, one Node test for each; CI runs all of them on Lua 5.1 |
+| `specs/*.lua` | Tests written once in Lua: a spec for each module of the addon (`codec`, `base64`, `zlibsize`, `store`, `import`, `client`, `events`, and M1's `attendance`, `export` and `ui`), one that plays a whole raid night (`night`) and one for the stubs themselves. `npm test` runs each under fengari, one Node test for each; CI runs all of them on Lua 5.1 |
 | `run51.lua` | The entry point for real Lua 5.1 |
 | `globals-lib.mjs` | The globals check (below) |
-| `fixtures/` | `sample.lua` proves the harness; `globals_ok.lua` and `globals_bad.lua` test the globals check; `saved/schema-<n>.lua` is a saved file as the addon wrote it at schema n, frozen, for the store's migration test |
+| `fixtures/` | `night.lua` plays a scripted raid night (below, "A whole night"); `sample.lua` proves the harness; `globals_ok.lua` and `globals_bad.lua` test the globals check; `saved/schema-<n>.lua` is a saved file as the addon wrote it at schema n, frozen, for the store's migration test |
 
 The tests that use them: `test/lua-harness.test.mjs` (the specs under fengari, and the sample driven from Node),
-`test/globals.test.mjs`, and `test/codec.test.mjs`, which drives the addon's codec from Node and checks it against the
-reference JavaScript and Node's own zlib.
+`test/globals.test.mjs`, `test/codec.test.mjs`, which drives the addon's codec from Node and checks it against the
+reference JavaScript and Node's own zlib, `test/night.test.mjs` (the scripted night's export read by the reference validator) and
+`test/export-fit.test.mjs` (the addon's size rules against the reference's).
 
 ## The rule: stay in the common subset
 
@@ -104,6 +105,8 @@ test, so a test starts from one player in the open world and a clock that stands
 | A file | `WOW.readFile("contract/fixtures/export-pugs.gg1.txt")` reads a file of the repository (a path from its root) as text, on fengari and on Lua 5.1 | |
 | Secret values | `WOW.secret()` makes a value the game would call secret | `issecretvalue(v)` is true for it and `canaccessvalue(v)` false. Compare, join or `tostring` it and a test sees no error, so check what the addon keeps instead |
 | An API gone | `WOW.hide("GetRaidRosterInfo")` or `WOW.hide("C_ChatInfo.SendAddonMessage")` takes it away, as a client without it. Assign a new function after hiding to make one that raises an error | The next `WOW.reset()` puts the game's own back, even for an API hidden twice |
+| Frames for a window | `CreateFrame(kind, name, parent, template)` keeps a frame's text, shown, enabled and focus state and its scripts; `UIParent`, `UISpecialFrames`, `ChatFontNormal`; `frame:CreateFontString`, `CreateTexture`. `WOW.userText(editBox, text)` types as the player does (the script gets `userInput` true), `WOW.click(button)` presses it (not when disabled), `WOW.frameState(frame)` reads `{ text, shown, enabled, focused, highlighted }`. `WOW.missingTemplates = { UIPanelButtonTemplate = true }` makes `CreateFrame` refuse that template, as a client without it would | `Client.window` builds the addon's window from these |
+| Combat logging, raid info | `WOW.logging` is the switch; `WOW.loggingCalls` lists every `LoggingCombat(flag)` call; `WOW.loggingRefused = true` makes the client ignore the request; `WOW.raidInfoRequests` counts `RequestRaidInfo()`. The game's answer, `UPDATE_INSTANCE_INFO`, is the test's to fire after `WOW.setSavedInstances` | `LoggingCombat`, `RequestRaidInfo` |
 | Lockouts, add-on data | `WOW.setSavedInstances({ { name, id, difficulty, locked, raid, maxPlayers } })`, `WOW.metadata.GuildGolem.Version = "v1.2.3"` | `GetNumSavedInstances`, `GetSavedInstanceInfo`, `C_AddOns.GetAddOnMetadata` |
 
 An error in a handler or a timer reaches the test, unless `WOW.catchErrors = true`, which records it in `WOW.errors`
@@ -114,10 +117,23 @@ first name and the surname as two values, GUIDs are `Player-<server>-<id>`, the 
 is 1.60.1 (70532), interface 16001 and `WOW_PROJECT_ID` 18. Names, guilds, instance ids and server numbers in tests are
 made up. Use no real player's name in a test or a fixture: this repository is public.
 
-What the stubs do not have yet: frame methods beyond events, scripts and visibility, `OnUpdate`, the loot, guild bank
+What the stubs do not have yet: frame methods beyond the ones the addon's window uses (layout calls are accepted and forgotten; a method that is not listed raises an error, so a typo in `Client.lua` shows up here), `OnUpdate`, the loot, guild bank
 and container APIs, and the `bit` library (the game has it; neither Lua 5.1 nor fengari does). Nothing in the addon or in
 LibDeflate uses `bit`, so there is no stub; if a library ever does, add a pure-Lua one to `wow.lua`. A stub is added
 when the first test needs it. Add the next one to `wow.lua`, with a test in `specs/wow_spec.lua`.
+
+## A whole night
+
+`fixtures/night.lua` plays forty players through three raids over four hours of the fake clock (zone-ins, wipes and kills, a
+disconnect and a reconnect, a player who leaves, a bench from the import, a pug), exports it, and returns what happened as
+plain data. `specs/night_spec.lua` checks what was recorded and that the outbox survives a logout; `test/night.test.mjs`
+reads the string with the reference validator and the writers' limits. Its header lists the night minute by minute. To
+script another night, copy the file and change the timeline: `at(minute)` moves the clock, `publish()` sends the roster, and
+`enter(raid)`, `leave()`, `pull(id)` and `ended(id, success)` fire the events a raid makes.
+
+Packing is the slow part under fengari (a night's export takes a few seconds, since LibDeflate runs at level 8 as it does in
+the game). Specs that pack a lot of text and do not care how well set `ns.Codec.LEVEL = 1`; `export_spec.lua` keeps its
+rosters to a few players for the same reason.
 
 ## The globals check
 

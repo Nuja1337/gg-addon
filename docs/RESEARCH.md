@@ -185,6 +185,48 @@ Checklist:
    - **Both agree on who won.** Is the winner in `ENCOUNTER_LOOT_RECEIVED` the same player on both clients, and the same
      as the "identity of drop" row's winner?
 
+9. **M1 smoke test in game** (the addon's first run on Forever's client: `GuildGolem/` copied into `_classic_beta_\Interface\AddOns`,
+   or the packaged file once there is one). Recording only happens in a raid instance with a group, and Forever's first
+   raid opens about Dec 9, so on Nov 4 do the parts marked (any day) and keep the rest for the first raid. Use the dev
+   site (the site's test copy), never the live guild. Write down what differs from what docs/PLAN.md, "What M1 chose",
+   says.
+   - **(any day) It loads.** `/gg status` prints the version, "No night imported", "Not recording", the outbox, the
+     combat logging line and the client's gaps (`The client lacks: ...`). Compare the gaps with what the probe found
+     (docs/RESEARCH.md, "Probe results") and note any "would not register these events" line: it names a game event the
+     client refused (`ZONE_CHANGED_NEW_AREA`, `UPDATE_INSTANCE_INFO`, `ENCOUNTER_START` and `ENCOUNTER_END` are the ones
+     the addon listens to). `/gg` opens the window; Escape closes it. If it says "The window could not be made", note the
+     error (`GuildGolemDB.errors` has it) and which template failed.
+   - **(any day) Import.** On the dev site make a night for the raid you will enter (its instance id; a bench of two with
+     GUIDs; the group's characters), press "Copy for the addon", open `/gg`, click the top box and paste with Ctrl+V. After
+     half a second the line under it should read the night ("A night's plan for ... 3 raids, ... people"), and **Import**
+     keeps it. Paste a damaged string (drop the last twenty characters) and an export: each is refused in words.
+     `/gg status` now shows the night's title and its raids.
+   - **(first raid) The copy box at size.** The probe's boxes test (step 1) says on launch day whether the game's edit box takes
+     64 KB. Here, once there is an export: `/gg export all` puts the string in the lower box already selected; copy it with
+     Ctrl+C and paste it into a text editor. The length should match the "Made 1 export string ... (N characters)" line in chat.
+     Type a letter in the lower box: it must put the string back.
+   - **(first raid) Zone in.** Form a raid group with at least one other player (ideally the real night's), enter the
+     raid. Chat says "Combat logging is on for this raid" (check the combat log file exists afterwards). `/gg status`:
+     "Recording <raid> (N players, difficulty D): 1 snapshot". Look at `GuildGolemDB.raids[1]` after a `/reload`
+     (`/dump GuildGolemDB.raids[1]` works if the game shows it, else read the saved file): `zone` is the instance id,
+     `difficulty` and `size` are what the dungeon journal says, `leader` is the raid leader, each member has a `zone` label,
+     and for a player inside it is the instance's name (docs/PLAN.md, "What M1 chose", item 4: if it is not, the site
+     cannot tell who was inside). Note what `GetInstanceInfo` and `GetRaidRosterInfo` really gave.
+   - **(first raid) A pull, a wipe, a kill.** Each takes a snapshot: `/gg status` counts them. `pull` is at
+     `ENCOUNTER_START`, `wipe` or `kill` at `ENCOUNTER_END` with the boss's id: compare the id with the probe's
+     `ENCOUNTER_*` rows (step 7). After the first kill the saved lockout should appear (`raids[1].lockout`, after
+     `UPDATE_INSTANCE_INFO`; the probe's "lockout ids" row says whether the id is the same for everyone).
+   - **(first raid) Leave and come back.** Have a player disconnect and come back, and one leave the group. Leave the
+     instance and re-enter within half an hour: the same raid goes on (a `zonein` after the `leave`). `/reload` in the
+     raid: it goes on too, and `/gg status` still counts the same snapshots.
+   - **(first raid) Export and paste on the dev site.** `/gg export` (chat says how many raids and snapshots), open `/gg`,
+     Ctrl+C the lower box, and paste it into the dev site's "Paste from the addon". The preview should show the raid, who
+     was there, the pugs and the bench as standby. Paste it a second time: the site says it was imported already.
+     `/gg export` again: "Nothing new to export". Press **Pasted on the site**. Log out and in: the outbox still holds what
+     was not marked.
+   - **Report.** For each line that differs: what the client gave, which line of `Client.lua` or `Attendance.lua` assumed
+     otherwise, and the fix. Remove `unverified on Forever` from the `Client.lua` lines this confirms.
+
 Results, one row per build:
 
 | Build | Date | What changed |

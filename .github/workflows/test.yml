@@ -1,5 +1,6 @@
-# The addons' checks (`npm test`, that every addon is Lua 5.1 with TOCs that list files that exist) on every push to a
-# branch and every pull request. Tags are left to release.yml, which runs the same checks before it packages anything.
+# The addons' checks (`npm test`, that every addon is Lua 5.1 with TOCs that list files that exist) and the same Lua
+# specs on real Lua 5.1, on every push to a branch and every pull request. Tags are left to release.yml, which runs
+# `npm test` before it packages anything.
 name: Test
 
 on:
@@ -28,3 +29,26 @@ jobs:
 
       - run: npm ci
       - run: npm test
+
+  # The addon's Lua on real Lua 5.1, the language the game runs. `npm test` runs the same specs under fengari, which is
+  # Lua 5.3, so this job is the authority on whether the code stays in what the two share (test/lua/README.md).
+  # Lua comes from Ubuntu's own package (5.1.5) instead of a third-party action, so there is no other code to pin
+  # or trust.
+  lua51:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends lua5.1
+          lua5.1 -v
+
+      # luac only compiles. It refuses anything that is not Lua 5.1, in every Lua file the repository has.
+      - name: Every Lua file compiles
+        run: luac5.1 -p $(git ls-files '*.lua')
+
+      - name: Run the specs
+        run: lua5.1 test/lua/run51.lua test/lua/specs/*.lua

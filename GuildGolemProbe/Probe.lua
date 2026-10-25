@@ -1,12 +1,25 @@
--- Guild Golem Probe (milestone M0, docs/PLAN.md): answers, on WoW Forever's own client, the questions the
--- Guild Golem addon is planned around (docs/RESEARCH.md, "To test in game"). It changes nothing in the game: it
--- reads, records what it saw in its saved variables (GuildGolemProbeDB), and shows everything as text to copy with
--- /ggprobe. Every check runs in a protected call, so one the client refuses is recorded as the answer instead of
--- stopping the rest, and a value the client keeps secret is recorded as <secret> without being touched.
+-- Guild Golem Probe (milestone M0, docs/PLAN.md) answers, on WoW Forever's own client, the questions the Guild Golem
+-- addon is planned around (docs/RESEARCH.md, "To test in game"). It reads, records what it saw in its saved variables
+-- (GuildGolemProbeDB), and shows everything as text to copy with /ggprobe. Nothing it does stays changed. The combat
+-- logging switch and one setting are flipped and put back. Every check runs in a protected call, so one the client
+-- refuses is recorded as the answer and the rest still run. A value the client keeps secret is recorded as <secret>
+-- without being touched.
+--
+-- Version 0.2 adds the launch-day tests, which live in Launch.lua and share this file's helpers through the table the
+-- game passes to every file of an addon (ns below). The saved variables carry probeVersion and schema, so two runs can
+-- be compared (tools/probe-diff.mjs). Their shape:
+--   probeVersion, schema   the probe's version and the shape's number (2 from 0.2.0)
+--   run                    the client's version, build and interface, and when this run began
+--   answers[section][key]  { text, at, where }, as in 0.1
+--   log                    the last answers in order (not compared)
+--   counters               how many times each repeated event has been seen, so a wipe and a kill both keep a key
+--   who                    every character, guild and realm name the probe saw, so the diff tool can replace them
 
-local ADDON = ...
+local ADDON, ns = ...
+ns = ns or {}
 local PREFIX = "GGProbe"
-local VERSION = "0.1.0"
+local VERSION = "0.2.0"
+local SCHEMA = 2
 local LOG_MOST = 300
 local TEXT_MOST = 700
 
@@ -42,14 +55,21 @@ local function describe(v, depth, most)
     for i = 1, v.n do parts[#parts + 1] = describe(v[i], depth + 1, most) end
     return "(" .. table.concat(parts, ", ") .. ")"
   end
-  local count = 0
-  for k, val in pairs(v) do
-    count = count + 1
+  -- Keys in a fixed order (numbers first), so the same table gives the same text in every run.
+  local keys = {}
+  for k in pairs(v) do keys[#keys + 1] = k end
+  pcall(table.sort, keys, function(a, b)
+    local ta, tb = type(a), type(b)
+    if ta == tb and (ta == "number" or ta == "string") then return a < b end
+    if ta ~= tb then return ta < tb end
+    return tostring(a) < tostring(b)
+  end)
+  for count, k in ipairs(keys) do
     if count > 30 then
       parts[#parts + 1] = "..."
       break
     end
-    parts[#parts + 1] = describe(k, depth + 1, most) .. "=" .. describe(val, depth + 1, most)
+    parts[#parts + 1] = describe(k, depth + 1, most) .. "=" .. describe(v[k], depth + 1, most)
   end
   return "{" .. table.concat(parts, ", ") .. "}"
 end
@@ -73,14 +93,95 @@ end
 
 -- Recording -------------------------------------------------------------------------------------------------------
 
-local function record(section, key, value, most)
+-- most is how deep a table is described, limit how many characters of text are kept (700 unless a payload needs more).
+local function record(section, key, value, most, limit)
   if not DB then return end
+  limit = limit or TEXT_MOST
   local text = type(value) == "string" and value or describe(value, 0, most)
-  if #text > TEXT_MOST then text = text:sub(1, TEXT_MOST) .. "..." end
+  if #text > limit then text = text:sub(1, limit) .. "..." end
   DB.answers[section] = DB.answers[section] or {}
   DB.answers[section][key] = { text = text, at = now(), where = where() }
-  table.insert(DB.log, { at = now(), section = section, key = key, text = text })
+  table.insert(DB.log, { at = now(), section = section, key = key, text = #text > 200 and (text:sub(1, 200) .. "...") or text })
   while #DB.log > LOG_MOST do table.remove(DB.log, 1) end
+end
+
+-- How many times something repeated has happened in this saved file, for keys such as "ENCOUNTER_START #2".
+local function nextN(name)
+  if not DB then return 1 end
+  DB.counters = DB.counters or {}
+  DB.counters[name] = (DB.counters[name] or 0) + 1
+  return DB.counters[name]
+end
+
+-- Every name that is a person, a guild or a realm goes in DB.who, so the diff tool knows what to replace before
+-- anything is shared. A name arrives as "First Surname" or "First Surname-Realm"; each part is kept as well.
+local function note(kind, value)
+  if not DB or type(value) ~= "string" or isSecret(value) or value == "" then return end
+  DB.who = DB.who or {}
+  DB.who[kind] = DB.who[kind] or {}
+  DB.who[kind][value] = true
+end
+
+local function noteName(value)
+  note("names", value)
+  if type(value) == "string" and not isSecret(value) then
+    local name, realm = value:match("^(.-)%-(.+)$")
+    if name then
+      note("names", name)
+      note("realms", realm)
+    end
+  end
+end
+
+-- A unit's name and the second value UnitName gives (the surname in Forever), and both together.
+local function noteUnit(unit)
+  local ok, name, second = pcall(UnitName, unit)
+  if not ok then return end
+  noteName(name)
+  if type(second) == "string" and not isSecret(second) and second ~= "" then
+    noteName(second)
+    if type(name) == "string" and not isSecret(name) and not isSecret(second) then noteName(name .. " " .. second) end
+  end
+end
+
+-- Names inside a table the client returned (loot history, for one): any field called ...name, except items, bosses and classes.
+local function harvestNames(value, depth)
+  depth = depth or 0
+  if type(value) ~= "table" or depth > 6 or isSecret(value) then return end
+  for k, v in pairs(value) do
+    if type(v) == "table" then
+      harvestNames(v, depth + 1)
+    elseif type(k) == "string" and type(v) == "string" then
+      local lower = k:lower()
+      if lower:find("name", 1, true) and not (lower:find("item", 1, true) or lower:find("encounter", 1, true) or lower:find("class", 1, true) or lower:find("boss", 1, true) or lower:find("instance", 1, true) or lower:find("zone", 1, true)) then
+        noteName(v)
+      end
+    end
+  end
+end
+
+local function registerSelf()
+  noteUnit("player")
+  local ok, name, second = pcall(UnitName, "player")
+  if ok and type(name) == "string" and not isSecret(name) then
+    DB.who = DB.who or {}
+    DB.who.self = type(second) == "string" and not isSecret(second) and second ~= "" and (name .. " " .. second) or name
+  end
+  if type(GetRealmName) == "function" then
+    local got, realm = pcall(GetRealmName)
+    if got then note("realms", realm) end
+  end
+  if type(GetNormalizedRealmName) == "function" then
+    local got, realm = pcall(GetNormalizedRealmName)
+    if got then note("realms", realm) end
+  end
+  if type(GetGuildInfo) == "function" then
+    local got, guild, _, _, subRealm = pcall(GetGuildInfo, "player")
+    if got then
+      note("guilds", guild)
+      note("realms", subRealm)
+    end
+  end
 end
 
 -- Runs a check; an error becomes its answer.
@@ -117,6 +218,30 @@ local function say(text)
   DEFAULT_CHAT_FRAME:AddMessage("|cffd4a017Guild Golem Probe:|r " .. text)
 end
 
+-- The name of a value in an Enum table ("Enum.SendAddonMessageResult", 3 gives "AddonMessageThrottle"), or nil.
+local function enumName(enumPath, value)
+  local enum = lookup(enumPath)
+  if type(enum) ~= "table" or isSecret(value) then return nil end
+  for name, number in pairs(enum) do
+    if number == value then return tostring(name) end
+  end
+  return nil
+end
+
+-- The state of every addon restriction type (combat, encounter, map, chat...), as far as this client has the API.
+local function restrictionStates()
+  local get = lookup("C_RestrictedActions.GetAddOnRestrictionState")
+  local types = lookup("Enum.AddOnRestrictionType")
+  if type(get) ~= "function" or type(types) ~= "table" then return "no API" end
+  local out = {}
+  for name, id in pairs(types) do
+    local ok, state = pcall(get, id)
+    out[#out + 1] = tostring(name) .. "=" .. (ok and (enumName("Enum.AddOnRestrictionState", state) or describe(state)) or "error")
+  end
+  table.sort(out)
+  return table.concat(out, ", ")
+end
+
 -- Checks ----------------------------------------------------------------------------------------------------------
 
 local API = {
@@ -130,7 +255,9 @@ local API = {
   "NotifyInspect", "C_Traits.HasValidInspectData", "C_Traits.GenerateInspectImportString", "C_Traits.GenerateImportString",
   "C_ClassTalents.GetActiveConfigID", "C_UnitAuras.GetAuraDataByIndex", "GetSavedInstanceInfo", "C_RaidLocks.IsEncounterComplete",
   "C_QuestLog.IsQuestFlaggedCompleted", "GetProfessions", "GetProfessionInfo", "C_TradeSkillUI.GetAllRecipeIDs",
-  "GetTradePlayerItemLink", "GetTradeTargetItemLink", "ReloadUI",
+  "GetTradePlayerItemLink", "GetTradeTargetItemLink", "ReloadUI", "LoggingCombat", "C_CVar.GetCVar", "C_CVar.SetCVar",
+  "debugprofilestop", "C_RestrictedActions.GetAddOnRestrictionState", "C_ChatInfo.IsAddonMessagePrefixRegistered",
+  "GetLootThreshold", "IsEncounterInProgress",
 }
 
 local function checkClient()
@@ -153,6 +280,7 @@ local function checkClient()
   try("player", "UnitGUID", UnitGUID, "player")
   try("player", "realm", GetRealmName)
   try("player", "guild (name, rank, rank index)", GetGuildInfo, "player")
+  registerSelf()
 end
 
 local function checkData()
@@ -180,15 +308,21 @@ local function sampleGroup(reason)
   if not IsInGroup() then return end
   local n = GetNumGroupMembers()
   local rows = {}
-  for i = 1, math.min(n, 4) do
+  for i = 1, n do
     local unit = groupUnit(i)
-    local row = { guid = UnitGUID(unit), name = pack(UnitName(unit)) }
-    if IsInRaid() then row.roster = pack(GetRaidRosterInfo(i)) end
-    rows[#rows + 1] = row
+    noteUnit(unit)
+    if i <= 4 then
+      local row = { guid = UnitGUID(unit), name = pack(UnitName(unit)) }
+      if IsInRaid() then row.roster = pack(GetRaidRosterInfo(i)) end
+      rows[#rows + 1] = row
+    end
+    if IsInRaid() then
+      local ok, rosterName = pcall(GetRaidRosterInfo, i)
+      if ok then noteName(rosterName) end
+    end
   end
   record("group", reason .. " @ " .. zone, { size = n, raid = IsInRaid(), members = rows }, 4)
-  try("loot", "method (method, master looter party, raid)", lookup("C_PartyInfo.GetLootMethod"))
-  try("loot", "methods available", lookup("C_PartyInfo.GetAvailableLootMethods"))
+  ns.readLootMethod()
 end
 
 local function sampleGuild(reason)
@@ -196,7 +330,9 @@ local function sampleGuild(reason)
   local n = GetNumGuildMembers()
   local rows = {}
   for i = 1, math.min(n, 3) do
-    rows[#rows + 1] = { info = pack(GetGuildRosterInfo(i)), lastOnline = pack(GetGuildRosterLastOnline(i)) }
+    local info = pack(GetGuildRosterInfo(i))
+    noteName(info[1])
+    rows[#rows + 1] = { info = info, lastOnline = pack(GetGuildRosterLastOnline(i)) }
   end
   record("guild roster", reason .. " @ " .. where(), { members = n, sample = rows, officerNotes = CanViewOfficerNote and CanViewOfficerNote() }, 4)
 end
@@ -252,19 +388,115 @@ local replies = 0
 
 local historyPending = false
 
+-- The loot method, who the master looter is, and what the group offers, keyed by the kind of group so a 5-man and a
+-- raid each keep their own answer.
+local function readLootMethod()
+  local kind = IsInRaid() and "raid" or (IsInGroup() and "party" or "solo")
+  local get = lookup("C_PartyInfo.GetLootMethod")
+  local source = "C_PartyInfo.GetLootMethod"
+  if type(get) ~= "function" then
+    get = lookup("GetLootMethod")
+    source = "GetLootMethod"
+  end
+  if type(get) ~= "function" then
+    record("loot", "method in a " .. kind .. " group", "missing: neither C_PartyInfo.GetLootMethod nor GetLootMethod")
+    return
+  end
+  local got = pack(pcall(get))
+  local out = { source = source, raw = got }
+  if got[1] then
+    out.method = enumName("Enum.LootMethod", got[2]) or describe(got[2])
+    -- Retail returns the master looter as a party number (0 is you) and a raid number.
+    local unit
+    if type(got[3]) == "number" and not isSecret(got[3]) then
+      unit = got[3] == 0 and "player" or ("party" .. got[3])
+    elseif type(got[4]) == "number" and not isSecret(got[4]) then
+      unit = "raid" .. got[4]
+    end
+    if unit then
+      noteUnit(unit)
+      local ok, name, second = pcall(UnitName, unit)
+      out.masterLooter = { unit = unit, name = ok and name or "error", second = ok and second or nil, guid = select(2, pcall(UnitGUID, unit)) }
+    end
+  end
+  if type(GetLootThreshold) == "function" then out.threshold = pack(pcall(GetLootThreshold)) end
+  local methods = lookup("C_PartyInfo.GetAvailableLootMethods")
+  if type(methods) == "function" then out.available = pack(pcall(methods)) end
+  record("loot", "method in a " .. kind .. " group @ " .. where(), out, 4, 1500)
+  -- 0.1 kept these two under other keys; they stay for runs that are compared with it.
+  try("loot", "method (method, master looter party, raid)", get)
+  if type(methods) == "function" then try("loot", "methods available", methods) end
+end
+ns.readLootMethod = readLootMethod
+
+-- Loot history, whatever shape this client has: the encounter and drop calls Retail has, and the older item and
+-- player calls. Each is checked before it is called.
 local function readLootHistory()
   historyPending = false
-  if not (C_LootHistory and C_LootHistory.GetAllEncounterInfos) then return end
-  local ok, infos = pcall(C_LootHistory.GetAllEncounterInfos)
-  record("loot history", "encounters", ok and infos or "error", 3)
-  if not ok or type(infos) ~= "table" or #infos == 0 then return end
-  local last = infos[#infos]
-  local id = last and last.encounterID
-  if id then
-    local got, drops = pcall(C_LootHistory.GetSortedDropsForEncounter, id)
-    record("loot history", "drops of encounter " .. tostring(id), got and drops or "error", 5)
+  local H = C_LootHistory
+  if type(H) ~= "table" then
+    record("loot history", "api", "missing: C_LootHistory is " .. type(H))
+    return
+  end
+  local getAll = H.GetAllEncounterInfos
+  if type(getAll) == "function" then
+    local ok, infos = pcall(getAll)
+    record("loot history", "encounters", ok and infos or ("error: " .. tostring(infos)), 3, 2500)
+    if ok then harvestNames(infos) end
+    if ok and type(infos) == "table" then
+      -- The newest three encounters; the list is oldest first.
+      for i = math.max(1, #infos - 2), #infos do
+        local info = infos[i]
+        local id = type(info) == "table" and info.encounterID
+        if id then
+          if type(H.GetInfoForEncounter) == "function" then
+            local got, detail = pcall(H.GetInfoForEncounter, id)
+            record("loot history", "info of encounter " .. tostring(id), got and detail or ("error: " .. tostring(detail)), 4, 2000)
+            if got then harvestNames(detail) end
+          end
+          if type(H.GetSortedDropsForEncounter) == "function" then
+            local got, drops = pcall(H.GetSortedDropsForEncounter, id)
+            record("loot history", "drops of encounter " .. tostring(id), got and drops or ("error: " .. tostring(drops)), 5, 3500)
+            if got then harvestNames(drops) end
+            if got and type(drops) == "table" and type(H.GetSortedInfoForDrop) == "function" then
+              for d = 1, math.min(#drops, 4) do
+                local drop = drops[d]
+                local listID = type(drop) == "table" and drop.lootListID or nil
+                if listID then
+                  local fine, dropInfo = pcall(H.GetSortedInfoForDrop, id, listID)
+                  record("loot history", "drop " .. tostring(listID) .. " of encounter " .. tostring(id), fine and dropInfo or ("error: " .. tostring(dropInfo)), 6, 3500)
+                  if fine then harvestNames(dropInfo) end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  else
+    record("loot history", "encounters", "missing: C_LootHistory.GetAllEncounterInfos")
+  end
+  if type(H.GetNumItems) == "function" then
+    local ok, count = pcall(H.GetNumItems)
+    local out = { count = ok and count or ("error: " .. tostring(count)) }
+    if ok and type(count) == "number" and type(H.GetItem) == "function" then
+      for item = 1, math.min(count, 4) do
+        local entry = pack(pcall(H.GetItem, item))
+        out["item " .. item] = entry
+        local players = type(entry[4]) == "number" and entry[4] or 0
+        if type(H.GetPlayerInfo) == "function" then
+          for p = 1, math.min(players, 6) do
+            local info = pack(pcall(H.GetPlayerInfo, item, p))
+            noteName(info[2])
+            out["item " .. item .. " player " .. p] = info
+          end
+        end
+      end
+    end
+    record("loot history", "older item calls (GetNumItems, GetItem, GetPlayerInfo)", out, 4, 3500)
   end
 end
+ns.readLootHistory = readLootHistory
 
 local function readBank()
   if not GetNumGuildBankTabs then return end
@@ -358,7 +590,8 @@ local window
 
 local function report()
   local lines = {
-    "Guild Golem Probe " .. VERSION .. ", made " .. date("%Y-%m-%d %H:%M") .. " (" .. where() .. ")",
+    "Guild Golem Probe " .. VERSION .. " (saved variables shape " .. SCHEMA .. "), made " .. date("%Y-%m-%d %H:%M") .. " (" .. where() .. ")",
+    "Client " .. tostring(DB.run and DB.run.clientVersion) .. ", build " .. tostring(DB.run and DB.run.build) .. ", interface " .. tostring(DB.run and DB.run.interface) .. ".",
     "Copy all of this (Ctrl+A, then Ctrl+C) and send it to the site's owner.",
     "",
   }
@@ -380,36 +613,50 @@ local function report()
   return (table.concat(lines, "\n"):gsub("|", "||"))
 end
 
+-- A movable window; the game's own frame template when it has one, else a plain dark one.
+local function newWindow(name, width, height, title)
+  local ok, f = pcall(CreateFrame, "Frame", name, UIParent, "BasicFrameTemplateWithInset")
+  if not ok or not f then
+    f = CreateFrame("Frame", name, UIParent)
+    local bg = f:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0, 0, 0, 0.9)
+  end
+  f:SetSize(width, height)
+  f:SetPoint("CENTER")
+  f:SetFrameStrata("DIALOG")
+  f:SetMovable(true)
+  f:EnableMouse(true)
+  f:RegisterForDrag("LeftButton")
+  f:SetScript("OnDragStart", f.StartMoving)
+  f:SetScript("OnDragStop", f.StopMovingOrSizing)
+  if f.TitleText then f.TitleText:SetText(title) end
+  tinsert(UISpecialFrames, name)
+  return f
+end
+
+-- A multiline edit box inside a scroll frame. editWidth is the text's width. Returns the edit box and its scroll frame.
+local function newTextBox(parent, scrollName, editWidth)
+  local scroll = CreateFrame("ScrollFrame", scrollName, parent, "UIPanelScrollFrameTemplate")
+  local edit = CreateFrame("EditBox", nil, scroll)
+  edit:SetMultiLine(true)
+  edit:SetFontObject(ChatFontNormal)
+  edit:SetWidth(editWidth)
+  edit:SetAutoFocus(false)
+  edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  scroll:SetScrollChild(edit)
+  return edit, scroll
+end
+ns.newWindow, ns.newTextBox = newWindow, newTextBox
+
 local function show()
   if not window then
-    local ok, f = pcall(CreateFrame, "Frame", "GuildGolemProbeWindow", UIParent, "BasicFrameTemplateWithInset")
-    if not ok or not f then
-      f = CreateFrame("Frame", "GuildGolemProbeWindow", UIParent)
-      local bg = f:CreateTexture(nil, "BACKGROUND")
-      bg:SetAllPoints()
-      bg:SetColorTexture(0, 0, 0, 0.9)
-    end
-    f:SetSize(720, 480)
-    f:SetPoint("CENTER")
-    f:SetFrameStrata("DIALOG")
-    f:SetMovable(true)
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", f.StartMoving)
-    f:SetScript("OnDragStop", f.StopMovingOrSizing)
-    if f.TitleText then f.TitleText:SetText("Guild Golem Probe: Ctrl+A, then Ctrl+C to copy") end
-    local scroll = CreateFrame("ScrollFrame", "GuildGolemProbeScroll", f, "UIPanelScrollFrameTemplate")
+    local f = newWindow("GuildGolemProbeWindow", 720, 480, "Guild Golem Probe: Ctrl+A, then Ctrl+C to copy")
+    local edit, scroll = newTextBox(f, "GuildGolemProbeScroll", 660)
     scroll:SetPoint("TOPLEFT", 12, -32)
     scroll:SetPoint("BOTTOMRIGHT", -32, 12)
-    local edit = CreateFrame("EditBox", nil, scroll)
-    edit:SetMultiLine(true)
-    edit:SetFontObject(ChatFontNormal)
-    edit:SetWidth(660)
-    edit:SetAutoFocus(false)
     edit:SetScript("OnEscapePressed", function() f:Hide() end)
-    scroll:SetScrollChild(edit)
     f.edit = edit
-    tinsert(UISpecialFrames, "GuildGolemProbeWindow")
     window = f
   end
   window.edit:SetText(report())
@@ -424,9 +671,20 @@ handlers.ADDON_LOADED = function(name)
   if name ~= ADDON then return end
   GuildGolemProbeDB = GuildGolemProbeDB or {}
   DB = GuildGolemProbeDB
+  local previousVersion = DB.probeVersion or (DB.answers and "0.1.0 or earlier" or nil)
   DB.answers = DB.answers or {}
   DB.log = DB.log or {}
+  DB.counters = DB.counters or {}
+  DB.who = DB.who or {}
+  DB.probeVersion = VERSION
+  DB.schema = SCHEMA
   DB.loads = (DB.loads or 0) + 1
+  local clientVersion, build, built, interface = GetBuildInfo()
+  DB.run = DB.run or { startedAt = now(), startedAtText = date("%Y-%m-%d %H:%M:%S"), probeVersion = VERSION }
+  DB.run.clientVersion, DB.run.build, DB.run.buildDate, DB.run.interface = clientVersion, build, built, interface
+  DB.run.lastLoadAt = now()
+  if previousVersion and previousVersion ~= VERSION then DB.run.upgradedFrom = previousVersion end
+  registerSelf()
   record("saved variables", "times loaded", DB.loads)
   record("saved variables", "last written at logout or reload", DB.lastSaved and date("%Y-%m-%d %H:%M:%S", DB.lastSaved) or "never yet")
   record("saved variables", "last unload was", DB.lastUnload or "never yet")
@@ -469,29 +727,60 @@ handlers.GUILD_ROSTER_UPDATE = function()
   after(1, function() sampleGuild("roster") end)
 end
 
+-- type and state arrive as numbers; the names come from the client's own Enum tables when it has them.
 handlers.ADDON_RESTRICTION_STATE_CHANGED = function(...)
-  record("restrictions", "changed " .. date("%H:%M:%S") .. " @ " .. where(), pack(...))
+  local args = pack(...)
+  local typeName = enumName("Enum.AddOnRestrictionType", args[1]) or describe(args[1])
+  local stateName = enumName("Enum.AddOnRestrictionState", args[2]) or describe(args[2])
+  local n = nextN("restriction " .. typeName .. " " .. stateName)
+  record("restrictions", typeName .. " " .. stateName .. " #" .. n, { args = args, chatLockdown = lockdown(), states = restrictionStates(), clock = date("%H:%M:%S") }, 3, 1500)
 end
 
+-- The client says an addon was stopped from doing something. Only this probe's own are kept.
+local function actionStopped(event)
+  return function(...)
+    local args = pack(...)
+    if args[1] ~= ADDON then return end
+    record("restrictions", event .. " #" .. nextN(event), args)
+  end
+end
+handlers.ADDON_ACTION_FORBIDDEN = actionStopped("ADDON_ACTION_FORBIDDEN")
+handlers.ADDON_ACTION_BLOCKED = actionStopped("ADDON_ACTION_BLOCKED")
+
+-- A pull and a wipe or kill both keep their own key (#1, #2...), with every argument the event carries.
 handlers.ENCOUNTER_START = function(...)
   local args = pack(...)
-  record("encounters", "start " .. describe(args[2]), args)
+  local n = nextN("ENCOUNTER_START")
+  record("encounters", "start " .. describe(args[2]) .. " #" .. n, {
+    args = args, instance = pack(pcall(GetInstanceInfo)), groupSize = GetNumGroupMembers(),
+    chatLockdown = lockdown(), restrictions = restrictionStates(), clock = date("%H:%M:%S"),
+  }, 4, 2500)
   record("addon messages", "chat lockdown at a pull", lockdown())
   record("addon messages", "send during a pull", send("pull", channel()))
+  if ns.burst and IsInGroup() then ns.burst(IsInRaid() and "RAID" or "PARTY", 12, "pull #" .. n) end
 end
 
 handlers.ENCOUNTER_END = function(...)
   local args = pack(...)
-  record("encounters", "end " .. describe(args[2]) .. " " .. date("%H:%M:%S"), args, 4)
+  local n = nextN("ENCOUNTER_END")
+  local inProgress = "no API"
+  if type(IsEncounterInProgress) == "function" then inProgress = describe(select(2, pcall(IsEncounterInProgress))) end
+  record("encounters", "end " .. describe(args[2]) .. " #" .. n, {
+    args = args, inProgress = inProgress, chatLockdown = lockdown(), restrictions = restrictionStates(), clock = date("%H:%M:%S"),
+  }, 4, 2500)
   after(3, function()
     record("addon messages", "chat lockdown after a pull", lockdown())
     record("addon messages", "send after a pull", send("after", channel()))
+    if ns.burst and IsInGroup() then ns.burst(IsInRaid() and "RAID" or "PARTY", 12, "after pull #" .. n) end
   end)
   after(6, readLootHistory)
 end
 
 handlers.CHAT_MSG_ADDON = function(prefix, text, chatType, sender, ...)
   if prefix ~= PREFIX then return end
+  noteName(sender)
+  -- Burst messages ("b:...") are counted by Launch.lua, not logged one by one.
+  if type(text) == "string" and not isSecret(text) and text:sub(1, 2) == "b:" then return end
   record("addon messages", "received on " .. tostring(chatType) .. " @ " .. where(), pack(text, chatType, sender, ...))
   if type(text) == "string" and not isSecret(text) and text:sub(1, 4) == "ping" and replies < 10 and not isSecret(sender) and sender ~= UnitName("player") then
     replies = replies + 1
@@ -512,16 +801,32 @@ handlers.CHAT_MSG_SYSTEM = function(text)
   record("chat", "system line (rolls) is secret @ " .. key, isSecret(text))
 end
 
+-- Arguments, in Retail: encounter id, item id, item link, quantity, player name, class.
 handlers.ENCOUNTER_LOOT_RECEIVED = function(...)
-  record("loot", "encounter loot received " .. date("%H:%M:%S"), pack(...))
+  local args = pack(...)
+  noteName(args[5])
+  record("loot", "encounter loot received #" .. nextN("ENCOUNTER_LOOT_RECEIVED"), { args = args, clock = date("%H:%M:%S") }, 3, 1500)
+end
+
+handlers.PARTY_LOOT_METHOD_CHANGED = function()
+  after(1, readLootMethod)
+end
+
+-- After a group roll ends, the history has the winner and every roll.
+handlers.LOOT_ROLLS_COMPLETE = function(...)
+  record("loot", "rolls complete #" .. nextN("LOOT_ROLLS_COMPLETE"), pack(...))
+  if not historyPending then
+    historyPending = true
+    after(2, readLootHistory)
+  end
 end
 
 handlers.LOOT_ITEM_ROLL_WON = function(...)
-  record("loot", "your roll won " .. date("%H:%M:%S"), pack(...))
+  record("loot", "your roll won #" .. nextN("LOOT_ITEM_ROLL_WON"), pack(...))
 end
 
 handlers.START_LOOT_ROLL = function(rollID, ...)
-  record("loot", "roll started " .. date("%H:%M:%S"), { args = pack(rollID, ...), link = GetLootRollItemLink and GetLootRollItemLink(rollID) })
+  record("loot", "roll started #" .. nextN("START_LOOT_ROLL"), { args = pack(rollID, ...), link = GetLootRollItemLink and GetLootRollItemLink(rollID) })
 end
 
 handlers.LOOT_HISTORY_UPDATE_ENCOUNTER = function()
@@ -544,7 +849,7 @@ handlers.LOOT_OPENED = function()
     end
     out.masterLootCandidates = names
   end
-  record("loot", "loot window " .. date("%H:%M:%S"), out)
+  record("loot", "loot window #" .. nextN("LOOT_OPENED"), out)
 end
 
 handlers.TRADE_ACCEPT_UPDATE = function(mine, theirs)
@@ -599,10 +904,26 @@ frame:SetScript("OnEvent", function(_, event, ...)
   if not ok then record("errors", event, tostring(err)) end
 end)
 
-local unknown = {}
-for event in pairs(handlers) do
-  if not pcall(frame.RegisterEvent, frame, event) then unknown[#unknown + 1] = event end
+-- Registers every event in a handlers table and remembers which ones this client has (Launch.lua uses this too).
+local eventStatus = {}
+local function register(owner, table_)
+  for event in pairs(table_) do
+    eventStatus[event] = pcall(owner.RegisterEvent, owner, event) and true or false
+  end
 end
+register(frame, handlers)
+ns.register = register
+
+-- What Launch.lua (the launch-day tests) uses from this file.
+ns.PREFIX, ns.VERSION = PREFIX, VERSION
+ns.record, ns.try, ns.describe, ns.isSecret, ns.pack = record, try, describe, isSecret, pack
+ns.lookup, ns.after, ns.say, ns.where, ns.now = lookup, after, say, where, now
+ns.nextN, ns.noteName, ns.noteUnit, ns.harvestNames = nextN, noteName, noteUnit, harvestNames
+ns.enumName, ns.restrictionStates, ns.lockdown, ns.registerSelf = enumName, restrictionStates, lockdown, registerSelf
+ns.db = function() return DB end
+ns.commands = {}   -- extra /ggprobe commands: ns.commands.name = function(rest) ... end
+ns.help = {}       -- their lines for /ggprobe help
+ns.onReset = {}    -- functions run by /ggprobe reset
 
 -- The commands -----------------------------------------------------------------------------------------------------
 
@@ -616,7 +937,7 @@ local HELP = {
   "/ggprobe invite Name Surname - invite someone by full name",
   "/ggprobe group <raid number> <group> - move a raid member to a group (leader or assistant)",
   "/ggprobe roster - read the raid and the guild roster here",
-  "/ggprobe reset - forget everything recorded",
+  "/ggprobe reset - forget everything recorded (copy the saved file first if you want to keep it)",
 }
 
 SLASH_GGPROBE1 = "/ggprobe"
@@ -628,6 +949,7 @@ SlashCmdList.GGPROBE = function(message)
     show()
   elseif command == "help" then
     for _, line in ipairs(HELP) do say(line) end
+    for _, line in ipairs(ns.help) do say(line) end
   elseif command == "ping" then
     local result = send("ping " .. now(), channel())
     record("addon messages", "ping sent on " .. tostring(channel()) .. " @ " .. where(), result)
@@ -658,15 +980,33 @@ SlashCmdList.GGPROBE = function(message)
     after(2, function() sampleGuild("asked") end)
     say("read; see /ggprobe.")
   elseif command == "reset" then
-    DB.answers, DB.log = {}, {}
+    DB.answers, DB.log, DB.counters, DB.who = {}, {}, {}, {}
+    DB.run = { startedAt = now(), startedAtText = date("%Y-%m-%d %H:%M:%S"), probeVersion = VERSION }
+    local clientVersion, build, built, interface = GetBuildInfo()
+    DB.run.clientVersion, DB.run.build, DB.run.buildDate, DB.run.interface = clientVersion, build, built, interface
     sampledZones, systemSeen = {}, {}
+    for _, fn in ipairs(ns.onReset) do pcall(fn) end
     checkData()
+    registerSelf()
     say("forgotten. Log out or /reload to start over.")
+  elseif ns.commands[command] then
+    local ok, err = pcall(ns.commands[command], rest)
+    if not ok then say("that failed: " .. tostring(err)) end
   else
     say("unknown command; /ggprobe help lists them.")
   end
 end
 
-if #unknown > 0 then
-  after(10, function() record("client", "events this client doesn't know", table.concat(unknown, ", ")) end)
-end
+-- Which events this client has, for every event the probe listens to. An event the client lacks (BOSS_KILL, say) is
+-- recorded as missing, not left out.
+after(10, function()
+  local unknown, names = {}, {}
+  for event, ok in pairs(eventStatus) do
+    names[#names + 1] = event
+    if not ok then unknown[#unknown + 1] = event end
+  end
+  table.sort(names)
+  table.sort(unknown)
+  for _, event in ipairs(names) do record("events", event, eventStatus[event] and "registered" or "missing") end
+  if #unknown > 0 then record("client", "events this client doesn't know", table.concat(unknown, ", ")) end
+end)

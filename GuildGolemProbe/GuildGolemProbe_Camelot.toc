@@ -2,9 +2,10 @@
 ## Title: Guild Golem Probe
 ## Notes: Checks what WoW Forever lets the Guild Golem addon do. Type /ggprobe.
 ## Author: Guild Golem
-## Version: 0.1.0
+## Version: 0.2.0
 ## SavedVariables: GuildGolemProbeDB
 ## X-Probe-TOC: camelot
 
 Data.lua
 Probe.lua
+Launch.lua

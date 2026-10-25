@@ -19,9 +19,10 @@ export const LUA_GLOBALS = [
   "coroutine", "debug", "math", "os", "string", "table",
 ];
 
-// The addon's own names: its shared namespace and its saved variables (the TOC's ## SavedVariables line). Add one
-// here when the addon makes another global; every file may use them.
-export const ADDON_GLOBALS = ["GuildGolem", "GuildGolemDB"];
+// The addon's own names: its shared namespace and its saved variables (the TOC's ## SavedVariables line), and
+// LibStub, the loader of the libraries in Libs/ (the addon asks it for LibDeflate and json.lua; it is not a game
+// function). Add one here when the addon makes another global; every file may use them.
+export const ADDON_GLOBALS = ["GuildGolem", "GuildGolemDB", "LibStub"];
 
 // Lua 5.1 globals that are left out on purpose. The game has no io, package, require or dofile, and the others let
 // code look up a game function by name, which the check could not see.

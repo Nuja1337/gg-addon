@@ -32,7 +32,8 @@ function push(L, value, depth = 0) {
       return lua.lua_pushboolean(L, value);
     case "number":
       // A whole number is a Lua integer, so %d and tostring behave as they would for a count the addon made.
-      return Number.isSafeInteger(value) ? lua.lua_pushinteger(L, value) : lua.lua_pushnumber(L, value);
+      // Fengari's integers are 32 bits, so a larger whole number goes in as a double, as it is in Lua 5.1.
+      return Number.isSafeInteger(value) && Math.abs(value) <= 0x7fffffff ? lua.lua_pushinteger(L, value) : lua.lua_pushnumber(L, value);
     case "string":
       return lua.lua_pushstring(L, to_luastring(value));
     case "object": {
@@ -152,6 +153,24 @@ export function createLua({ boot = true } = {}) {
       lua.lua_close(L);
     },
   };
+
+  // Fengari has no io.open, so a Lua test reads a file of the repository (a path from its root, with forward slashes)
+  // through this: GG_READ(path) gives the file's bytes as text, or nil and a message. WOW.readFile uses it, and
+  // io.open on real Lua 5.1.
+  lua.lua_pushjsfunction(L, (state) => {
+    const path = to_jsstring(lua.lua_tostring(state, 1));
+    try {
+      if (path.includes("..") || path.startsWith("/")) throw new Error("a path inside the repository, please");
+      const bytes = readFileSync(join(ROOT, path));
+      lua.lua_pushlstring(state, bytes, bytes.length);
+      return 1;
+    } catch (error) {
+      lua.lua_pushnil(state);
+      lua.lua_pushstring(state, to_luastring(String(error.message)));
+      return 2;
+    }
+  });
+  lua.lua_setglobal(L, to_luastring("GG_READ"));
 
   if (boot) {
     execute(`GG_ROOT = ${JSON.stringify(ROOT.replaceAll("\\", "/"))}`, "=root");

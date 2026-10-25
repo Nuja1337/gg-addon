@@ -62,6 +62,24 @@ if _VERSION ~= "Lua 5.1" then
   -- string -----------------------------------------------------------------------------------------------------
   string.gfind = string.gfind or string.gmatch
 
+  -- Every number in Lua 5.1 is a double. Fengari's integers are 32 bits and wrap (65521 * 65536 is negative), so
+  -- code that works on bytes and sums or shifts them (LibDeflate's Adler-32, the base64 and zlib readers) would
+  -- compute different numbers than in the game. Making the bytes doubles makes everything computed from them a
+  -- double, exact to 2^53, as in 5.1. Numbers that do not come from a byte need care in the code itself: see
+  -- README.md, "What cannot be shimmed".
+  local rawbyte = string.byte
+  local rawunpack = unpack
+  string.byte = function(s, i, j)
+    if j == nil or j == i then
+      local b = rawbyte(s, i)
+      if b then return b + 0.0 end
+      return
+    end
+    local t = { rawbyte(s, i, j) }
+    for k = 1, #t do t[k] = t[k] + 0.0 end
+    return rawunpack(t)
+  end
+
   -- Lua 5.1 prints a number with %.14g, so 10 / 2 is "5". Lua 5.3 prints the float 5.0 as "5.0". This brings
   -- tostring() back to 5.1. It cannot reach `..` or the %s of string.format, which still print "5.0": build
   -- text from numbers with string.format("%d") or ("%.14g") (README.md, "What cannot be shimmed").

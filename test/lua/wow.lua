@@ -62,6 +62,12 @@ function WOW.reset(opts)
     for key in pairs(SlashCmdList) do SlashCmdList[key] = nil end
   end
 
+  -- An API a test hid with WOW.hide comes back. The last one hidden goes back first, so an API hidden twice (taken
+  -- away, then replaced by the test) ends as the game's own.
+  local hiddenList = WOW.hidden or {}
+  for i = #hiddenList, 1, -1 do hiddenList[i].owner[hiddenList[i].key] = hiddenList[i].value end
+  WOW.hidden = {}
+
   WOW.errors = {}
   WOW.catchErrors = false
   WOW.frames = {}
@@ -85,6 +91,9 @@ function WOW.reset(opts)
   WOW.group = { kind = nil, members = {} }
   WOW.instance = {}
   WOW.build = { version = "1.60.1", build = "70532", date = "Oct 20 2026", toc = 16001 }
+  WOW.metadata = { GuildGolem = { Version = "0.1.0-beta", Title = "Guild Golem" } }
+  WOW.secrets = setmetatable({}, { __mode = "k" })
+  WOW.savedInstances = {}
   WOW.locale = "enUS"
   WOW.realm = "Classic Beta PvP"
 end
@@ -159,7 +168,9 @@ end
 
 function GetTime() return WOW.uptime end
 function debugprofilestop() return WOW.uptime * 1000 end
-function GetServerTime() return math.floor(WOW.uptime + WOW.offset) end
+-- Like every number in Lua 5.1 this is a double, so GetServerTime() * 1000 does not wrap in fengari, whose integers
+-- are 32 bits (README.md, "What cannot be shimmed").
+function GetServerTime() return math.floor(WOW.uptime + WOW.offset) + 0.0 end
 
 -- The game's time() and Lua's os.time() both read the fake clock when asked for the time now.
 function time(t)
@@ -403,6 +414,64 @@ function GetInstanceInfo()
     0, false, i.instanceID or 0, i.instanceGroupSize or 0, nil
 end
 
+-- Connection, saved instances, secret values, add-on metadata --------------------------------------------------------
+
+function UnitIsConnected(unit)
+  local m = unitMember(unit)
+  if not m then return false end
+  return m.online ~= false
+end
+
+-- Sets the saved lockouts GetSavedInstanceInfo reports: a list of { name, id, difficulty, locked, instanceID, raid,
+-- maxPlayers, difficultyName }. These are the test's values, not the game's.
+function WOW.setSavedInstances(list)
+  WOW.savedInstances = list and copy(list) or {}
+end
+
+function GetNumSavedInstances() return #WOW.savedInstances end
+
+-- name, lockoutId, reset, difficultyId, locked, extended, instanceIDMostSig, isRaid, maxPlayers, difficultyName,
+-- numEncounters, encounterProgress
+function GetSavedInstanceInfo(index)
+  local r = WOW.savedInstances[index]
+  if not r then return end
+  return r.name, r.id, r.reset or 0, r.difficulty or 0, r.locked ~= false, false, r.instanceID or 0, r.raid ~= false,
+    r.maxPlayers or 0, r.difficultyName or "", 0, 0
+end
+
+-- A value the game would make secret. The addon may hold it but not compare it, join it or turn it to text; the
+-- stub is a table that issecretvalue knows, so a test can hand one to the addon where the game would.
+function WOW.secret(label)
+  local value = { secret = label or true }
+  WOW.secrets[value] = true
+  return value
+end
+
+local function isSecret(value)
+  return type(value) == "table" and WOW.secrets[value] == true
+end
+
+function issecretvalue(value) return isSecret(value) end
+function canaccessvalue(value) return not isSecret(value) end
+
+C_AddOns = {}
+
+function C_AddOns.GetAddOnMetadata(addon, field)
+  local data = WOW.metadata[addon]
+  return data and data[field] or nil
+end
+
+-- Takes an API away for the rest of the test, as a client that lacks it would: "GetRaidRosterInfo", or
+-- "C_ChatInfo.SendAddonMessage" for a function in a table. WOW.reset puts it back.
+function WOW.hide(path)
+  local owner, key = _G, path
+  local head, tail = path:match("^(.-)%.(.+)$")
+  if head then owner, key = _G[head], tail end
+  if type(owner) ~= "table" or owner[key] == nil then fail("WOW.hide: there is no " .. path) end
+  WOW.hidden[#WOW.hidden + 1] = { owner = owner, key = key, value = owner[key] }
+  owner[key] = nil
+end
+
 -- Addon messages -------------------------------------------------------------------------------------------------
 
 Enum = Enum or {}
@@ -428,6 +497,16 @@ end
 function C_ChatInfo.IsAddonMessagePrefixRegistered(prefix)
   return WOW.prefixes[prefix] == true
 end
+
+-- True during an encounter or in a restricted zone (WOW.lockdown), when the game turns chat secret.
+function C_ChatInfo.InChatMessagingLockdown()
+  return WOW.lockdown == true
+end
+
+-- ADDON_RESTRICTION_STATE_CHANGED(type, state): the type and state are numbers from these enums. The names are
+-- docs/RESEARCH.md's; the numbers are the test's, since the probe has not recorded the client's.
+Enum.AddOnRestrictionType = { Combat = 0, Encounter = 1, ChallengeMode = 2, PvPMatch = 3, Map = 4, Chat = 5 }
+Enum.AddOnRestrictionState = { Inactive = 0, Activating = 1, Active = 2 }
 
 -- A message is up to 255 bytes, a prefix has 10 messages and refills one a second (the fake clock), and
 -- WOW.lockdown = true is an encounter: the message is refused and not sent. Returns the result code.
@@ -528,7 +607,8 @@ local function literal(value, indent, seen)
     if value ~= value or value == math.huge or value == -math.huge then
       fail("a saved variable holds " .. tostring(value) .. ", which the game cannot write")
     end
-    if value == math.floor(value) and math.abs(value) < 1e15 then return string.format("%d", value) end
+    -- %d would fail in fengari past 2^31 (a time in milliseconds is 1.8e12), and %.0f is exact to 2^53.
+    if value == math.floor(value) and math.abs(value) < 1e15 then return string.format("%.0f", value) end
     return string.format("%.17g", value)
   end
   if t ~= "table" then return nil end
@@ -588,9 +668,38 @@ function WOW.dofile(path, addon, ns)
   return chunk(addon, ns)
 end
 
+-- The bytes of a file of the repository (a path from its root, with forward slashes), as text; or nil and why.
+-- Fengari has no io.open, so test/lua/run.mjs gives the state GG_READ; real Lua 5.1 uses io.open.
+function WOW.readFile(path)
+  if GG_READ then return GG_READ(path) end
+  local handle, err = io.open(WOW.root .. "/" .. path, "rb")
+  if not handle then return nil, err end
+  local text = handle:read("*a")
+  handle:close()
+  return text
+end
+
+-- The files an addon's TOC lists, in the order the game loads them, as paths from the repository's root:
+-- WOW.tocFiles("GuildGolem") reads GuildGolem/GuildGolem.toc, and a second argument names another TOC in the folder
+-- ("GuildGolem_Camelot.toc"). Lines that are empty or start with # are not files. Backslashes become slashes.
+function WOW.tocFiles(addon, toc)
+  toc = toc or (addon .. ".toc")
+  local text, err = WOW.readFile(addon .. "/" .. toc)
+  if not text then error("WOW.tocFiles: " .. tostring(err), 2) end
+  local files = {}
+  for line in (text .. "\n"):gmatch("(.-)\r?\n") do
+    line = line:gsub("^%s+", ""):gsub("%s+$", "")
+    if line ~= "" and line:sub(1, 1) ~= "#" then files[#files + 1] = addon .. "/" .. line:gsub("\\", "/") end
+  end
+  return files
+end
+
 -- Loads an addon: runs its files in order, then loads its saved variables and fires ADDON_LOADED, as the game does.
--- Returns the shared table. Call WOW.login next to fire PLAYER_LOGIN.
+-- Returns the shared table. Call WOW.login next to fire PLAYER_LOGIN. `files` is a list of paths from the
+-- repository's root, or nil to read the list from the addon's TOC (WOW.tocFiles), so a test loads what the game
+-- would, in the order the game would.
 function WOW.loadAddon(addon, files, ns)
+  files = files or WOW.tocFiles(addon)
   ns = ns or {}
   for _, path in ipairs(files) do WOW.dofile(path, addon, ns) end
   WOW.loadSavedVariables()

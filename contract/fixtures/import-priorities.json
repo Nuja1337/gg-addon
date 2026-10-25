@@ -1,12 +1,13 @@
 {
   "v": 1,
   "kind": "import",
-  "meta": {"site":"2026.10.25","made":1796843700000,"latest":"0.1.0","from":"priorities","officer":true},
+  "meta": {"site":"0.36.2","made":1796843700000,"latest":"0.1.0","from":"priorities","officer":true},
   "guild": {"handle":"abcd2345","name":"Molten Raiders"},
   "raids": [
     {
       "zone": 5011,
       "name": "Ember Vault",
+      "lootBy": "system",
       "loot": {
         "items": [
           {"id":288101,"order":[[1],[2,3]],"specs":[["mage:1","warlock:3"],["priest:3"]],"key":true,"note":"Cinderjaw's ring"},

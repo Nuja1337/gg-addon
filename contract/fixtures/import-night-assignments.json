@@ -1,7 +1,7 @@
 {
   "v": 1,
   "kind": "import",
-  "meta": {"site":"2026.10.25","made":1796843700000,"latest":"0.1.0","from":"night-assignments"},
+  "meta": {"site":"0.36.2","made":1796843700000,"latest":"0.1.0","from":"night-assignments"},
   "guild": {"handle":"abcd2345","name":"Molten Raiders"},
   "night": {"handle":"efgh6789","title":"Weekend raids","startsAt":1796846400000},
   "raids": [

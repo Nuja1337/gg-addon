@@ -5,8 +5,10 @@
     "id": "mgq1k2zt.4fa91c07",
     "made": 1796864400000,
     "addon": "0.1.0-beta",
-    "client": {"version":"1.60.1","build":70532,"interface":16001},
+    "client": {"version":"1.60.1","build":70532,"interface":16001,"locale":"enUS"},
     "by": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"},
+    "realm": "Classic Beta PvP",
+    "guildName": "Molten Raiders",
     "guild": "abcd2345",
     "night": "efgh6789"
   },
@@ -17,7 +19,10 @@
       "name": "Ember Vault",
       "difficulty": 9,
       "size": 10,
-      "standby": ["Player-9101-0F00AA1A"],
+      "night": "efgh6789",
+      "leader": "Player-9101-0F00AA12",
+      "lockout": 770011,
+      "standby": [{"guid":"Player-9101-0F00AA1A","name":"Pell Ravensong","cls":"priest"}],
       "snapshots": [
         {
           "at": 1796846700000,

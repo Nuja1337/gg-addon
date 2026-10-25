@@ -5,10 +5,13 @@
     "id": "mgq1k2zt.e7a2b946",
     "made": 1796864400000,
     "addon": "0.1.0-beta",
-    "client": {"version":"1.60.1","build":70532,"interface":16001},
+    "client": {"version":"1.60.1","build":70532,"interface":16001,"locale":"enUS"},
     "by": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"},
+    "realm": "Classic Beta PvP",
+    "guildName": "Molten Raiders",
     "guild": "abcd2345",
-    "night": "efgh6789"
+    "night": "efgh6789",
+    "skew": 0
   },
   "attendance": [
     {
@@ -17,7 +20,10 @@
       "name": "Ember Vault",
       "difficulty": 9,
       "size": 10,
-      "standby": ["Player-9101-0F00AA1A"],
+      "night": "efgh6789",
+      "leader": "Player-9101-0F00AA12",
+      "lockout": 770011,
+      "standby": [{"guid":"Player-9101-0F00AA1A","name":"Pell Ravensong","cls":"priest"}],
       "snapshots": [
         {
           "at": 1796846700000,
@@ -135,6 +141,9 @@
       "name": "Hollow Spire",
       "difficulty": 9,
       "size": 10,
+      "night": "efgh6789",
+      "leader": "Player-9101-0F00AA12",
+      "lockout": 770012,
       "snapshots": [
         {
           "at": 1796849700000,
@@ -244,7 +253,13 @@
       "name": "Stone Wake",
       "difficulty": 9,
       "size": 10,
-      "standby": ["Player-9102-0F00AA19","Player-9101-0F00AA1A"],
+      "night": "efgh6789",
+      "leader": "Player-9101-0F00AA12",
+      "lockout": 770013,
+      "standby": [
+        {"guid":"Player-9102-0F00AA19","name":"Dorn Hollowmere","cls":"shaman"},
+        {"guid":"Player-9101-0F00AA1A","name":"Pell Ravensong","cls":"priest"}
+      ],
       "snapshots": [
         {
           "at": 1796852400000,
@@ -318,7 +333,9 @@
       "winner": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"},
       "how": "reserve",
       "zone": 5011,
-      "encounter": 90101
+      "encounter": 90101,
+      "boss": "Cinderjaw",
+      "drop": "90101:1"
     },
     {
       "dedupe": "L1|288102|Player-9101-0F00AA12|1796848585|90102|1",
@@ -330,7 +347,9 @@
       "winner": {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove"},
       "how": "roll",
       "zone": 5011,
-      "encounter": 90102
+      "encounter": 90102,
+      "boss": "Vault Warden",
+      "drop": "90102:1"
     },
     {
       "dedupe": "L1|288110|Player-9101-0F00AA13|1796847761|90101|1",
@@ -342,7 +361,10 @@
       "winner": {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook"},
       "how": "roll",
       "zone": 5011,
-      "encounter": 90101
+      "encounter": 90101,
+      "boss": "Cinderjaw",
+      "offspec": true,
+      "drop": "90101:2"
     },
     {
       "dedupe": "L1|288110|Player-9101-0F00AA13|1796847761|90101|2",
@@ -354,7 +376,9 @@
       "winner": {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook"},
       "how": "roll",
       "zone": 5011,
-      "encounter": 90101
+      "encounter": 90101,
+      "boss": "Cinderjaw",
+      "drop": "90101:3"
     },
     {
       "dedupe": "L1|288103|Player-9102-0F00AA16|1796847762|90101|1",
@@ -367,7 +391,9 @@
       "how": "disenchant",
       "zone": 5011,
       "encounter": 90101,
-      "note": "Nobody needed it"
+      "boss": "Cinderjaw",
+      "count": 3,
+      "note": "Nobody needed them"
     },
     {
       "dedupe": "L1|288201|Player-9101-0F00AA18|1796851290|90201|1",
@@ -379,7 +405,8 @@
       "winner": {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield"},
       "how": "council",
       "zone": 5012,
-      "encounter": 90201
+      "encounter": 90201,
+      "boss": "Spire Matron"
     },
     {
       "dedupe": "L1|288301|~Zed Thornwick|1796853230|90301|1",
@@ -391,7 +418,8 @@
       "winner": {"name":"Zed Thornwick"},
       "how": "roll",
       "zone": 5013,
-      "encounter": 90301
+      "encounter": 90301,
+      "boss": "Wake Titan"
     },
     {
       "dedupe": "L1|288101|Player-9101-0F00AA17|1796854200|0|1",

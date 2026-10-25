@@ -1,0 +1,131 @@
+{
+  "v": 1,
+  "kind": "export",
+  "meta": {
+    "id": "mgq1k2zt.e7a2b946.4",
+    "made": 1796864400000,
+    "addon": "0.1.0-beta",
+    "client": {"version":"1.60.1","build":70532,"interface":16001,"locale":"enUS"},
+    "by": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"},
+    "realm": "Classic Beta PvP",
+    "guildName": "Molten Raiders",
+    "guild": "abcd2345",
+    "night": "efgh6789",
+    "skew": 0
+  },
+  "loot": [
+    {
+      "dedupe": "L1|288101|Player-9101-0F00AA11|1796847760|90101|1",
+      "at": 1796847760000,
+      "item": 288101,
+      "link": "item:288101:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Cinderjaw's Ember Band",
+      "quality": 4,
+      "winner": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"},
+      "how": "reserve",
+      "zone": 5011,
+      "encounter": 90101,
+      "boss": "Cinderjaw",
+      "drop": "90101:1"
+    },
+    {
+      "dedupe": "L1|288102|Player-9101-0F00AA12|1796848585|90102|1",
+      "at": 1796848585000,
+      "item": 288102,
+      "link": "item:288102:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Vault Warden's Ward",
+      "quality": 4,
+      "winner": {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove"},
+      "how": "roll",
+      "zone": 5011,
+      "encounter": 90102,
+      "boss": "Vault Warden",
+      "drop": "90102:1"
+    },
+    {
+      "dedupe": "L1|288110|Player-9101-0F00AA13|1796847761|90101|1",
+      "at": 1796847761000,
+      "item": 288110,
+      "link": "item:288110:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Cinder Token",
+      "quality": 3,
+      "winner": {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook"},
+      "how": "roll",
+      "zone": 5011,
+      "encounter": 90101,
+      "boss": "Cinderjaw",
+      "offspec": true,
+      "drop": "90101:2"
+    },
+    {
+      "dedupe": "L1|288110|Player-9101-0F00AA13|1796847761|90101|2",
+      "at": 1796847761000,
+      "item": 288110,
+      "link": "item:288110:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Cinder Token",
+      "quality": 3,
+      "winner": {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook"},
+      "how": "roll",
+      "zone": 5011,
+      "encounter": 90101,
+      "boss": "Cinderjaw",
+      "drop": "90101:3"
+    },
+    {
+      "dedupe": "L1|288103|Player-9102-0F00AA16|1796847762|90101|1",
+      "at": 1796847762000,
+      "item": 288103,
+      "link": "item:288103:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Emberscale Shard",
+      "quality": 3,
+      "winner": {"guid":"Player-9102-0F00AA16","name":"Tamsin Quillfeather"},
+      "how": "disenchant",
+      "zone": 5011,
+      "encounter": 90101,
+      "boss": "Cinderjaw",
+      "count": 3,
+      "note": "Nobody needed them"
+    },
+    {
+      "dedupe": "L1|288201|Player-9101-0F00AA18|1796851290|90201|1",
+      "at": 1796851290000,
+      "item": 288201,
+      "link": "item:288201:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Spire Matron's Tome",
+      "quality": 4,
+      "winner": {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield"},
+      "how": "council",
+      "zone": 5012,
+      "encounter": 90201,
+      "boss": "Spire Matron"
+    },
+    {
+      "dedupe": "L1|288301|~Zed Thornwick|1796853230|90301|1",
+      "at": 1796853230000,
+      "item": 288301,
+      "link": "item:288301:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Wake Titan's Greaves",
+      "quality": 4,
+      "winner": {"name":"Zed Thornwick"},
+      "how": "roll",
+      "zone": 5013,
+      "encounter": 90301,
+      "boss": "Wake Titan"
+    },
+    {
+      "dedupe": "L1|288101|Player-9101-0F00AA17|1796854200|0|1",
+      "at": 1796854200000,
+      "item": 288101,
+      "link": "item:288101:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Cinderjaw's Ember Band",
+      "quality": 4,
+      "winner": {"guid":"Player-9101-0F00AA17","name":"Brann Coldharbor"},
+      "how": "trade",
+      "note": "Vex gave it to Brann after the raid"
+    }
+  ],
+  "pugs": [
+    {"guid":"Player-9103-0F00BB01","name":"Zed Thornwick","cls":"rogue","at":1796852400000},
+    {"guid":"Player-9103-0F00BB02","name":"Nia Farrowdale","cls":"mage","at":1796849700000}
+  ]
+}

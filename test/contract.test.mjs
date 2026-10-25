@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { deflateRawSync, deflateSync, gzipSync, inflateRawSync, inflateSync } from "node:zlib";
-import { FROM, MAX_JSON, MAX_TEXT, PREFIX, WRITE_JSON, WRITE_TEXT, decode, dedupeAll, dedupeKey, encode, fit, readString, validate } from "./contract-lib.mjs";
+import { FROM, HOW, MAX_JSON, MAX_TEXT, PREFIX, WRITE_JSON, WRITE_TEXT, decode, dedupeAll, dedupeKey, encode, fit, importLoot, normalize, presentIn, readString, runIsOpen, runsOf, sameRun, typesOf, upsertAttendance, validate } from "./contract-lib.mjs";
 
 const DIR = join(import.meta.dirname, "..", "contract", "fixtures");
 const names = readdirSync(DIR)
@@ -32,7 +32,7 @@ describe("the fixtures", () => {
       imports.map((n) => n.replace("import-", "")).sort(),
       ["night", "night-assignments", "night-loot", "priorities"],
     );
-    assert.deepEqual(exports_, ["export-attendance", "export-empty", "export-loot", "export-night", "export-pugs"]);
+    assert.deepEqual(exports_, ["export-attendance", "export-empty", "export-loot", "export-night", "export-night-second-recorder", "export-night-split-1", "export-night-split-2", "export-night-split-3", "export-night-split-4", "export-pugs"]);
     assert.deepEqual([...new Set(imports.map((n) => json(n).meta.from))].sort(), [...FROM].sort());
   });
 
@@ -101,7 +101,10 @@ describe("the fixtures", () => {
     const states = big.attendance[0].snapshots.map((s) => s.members.find((m) => m.name === "Fenn Ashdown").online);
     assert.deepEqual(states, [true, true, true, false, false, true, true]);
     // Standby are never in the snapshots.
-    for (const raid of big.attendance) for (const g of raid.standby ?? []) assert.ok(raid.snapshots.every((s) => s.members.every((m) => m.guid !== g)));
+    for (const raid of big.attendance) for (const g of raid.standby ?? []) assert.ok(raid.snapshots.every((s) => s.members.every((m) => m.guid !== g.guid)));
+    assert.ok(big.attendance[0].standby.every((m) => m.guid && m.name));
+    assert.ok(big.attendance.every((r) => r.night === big.meta.night && r.leader && r.lockout));
+    assert.ok(big.loot.some((l) => l.offspec === true) && big.loot.some((l) => l.count > 1) && big.loot.some((l) => l.drop) && big.loot.every((l) => !l.encounter || l.boss));
     assert.ok(big.loot.some((l) => !l.winner.guid), "a winner known by name only");
     assert.ok(big.loot.some((l) => l.how === "trade") && big.loot.some((l) => l.how === "disenchant"));
     assert.deepEqual(Object.keys(json("export-empty")).sort(), ["kind", "meta", "v"]);
@@ -249,26 +252,22 @@ describe("a string that must read", () => {
 });
 
 describe("the validator", () => {
-  const without = (name, path) => {
+  const edit = (name, path, value, remove = false) => {
     const o = clone(json(name));
     const keys = path.split(".");
     let at = o;
     for (const k of keys.slice(0, -1)) at = at[/^\d+$/.test(k) ? Number(k) : k];
-    delete at[keys.at(-1)];
+    if (remove) delete at[keys.at(-1)];
+    else at[keys.at(-1)] = value;
     return o;
   };
-  const setting = (name, path, value) => {
-    const o = clone(json(name));
-    const keys = path.split(".");
-    let at = o;
-    for (const k of keys.slice(0, -1)) at = at[/^\d+$/.test(k) ? Number(k) : k];
-    at[keys.at(-1)] = value;
-    return o;
-  };
+  const without = (name, path) => edit(name, path, undefined, true);
+  const setting = (name, path, value) => edit(name, path, value);
   const problem = (o, part) => assert.ok(validate(o).some((e) => e.includes(part)), `${part} in ${JSON.stringify(validate(o))}`);
+  const fine = (o) => assert.deepEqual(validate(o), []);
 
   it("wants every required top-level and meta field", () => {
-    for (const [name, field] of [["import-night", "site"], ["import-night", "made"], ["import-night", "latest"], ["import-night", "from"], ["export-night", "id"], ["export-night", "made"], ["export-night", "addon"], ["export-night", "client"], ["export-night", "by"]])
+    for (const [name, field] of [["import-night", "site"], ["import-night", "made"], ["import-night", "latest"], ["import-night", "from"], ["export-night", "id"], ["export-night", "made"], ["export-night", "addon"], ["export-night", "client"], ["export-night", "by"], ["export-night", "realm"], ["export-night", "client.locale"]])
       problem(without(name, `meta.${field}`), `$.meta.${field}: is required`);
     problem(without("export-empty", "meta"), "$.meta: is required");
     problem(without("export-empty", "kind"), "$.kind");
@@ -276,7 +275,14 @@ describe("the validator", () => {
     problem(setting("export-empty", "meta.made", "1796864400000"), "$.meta.made");
     problem(setting("export-empty", "meta.id", "has space"), "$.meta.id");
     problem(setting("export-empty", "meta.client.build", "70532"), "$.meta.client.build");
+    problem(setting("export-empty", "meta.skew", 1.5), "$.meta.skew");
     problem(setting("import-night", "meta.latest", "new"), "$.meta.latest");
+    problem(setting("import-night", "meta.site", "2026.10.25 build"), "$.meta.site");
+    problem(setting("import-night", "meta.site", 36), "$.meta.site");
+    fine(setting("import-night", "meta.site", "0.36.2-beta.1"));
+    fine(setting("export-night", "meta.skew", -2000));
+    fine(without("export-night", "meta.guildName"));
+    fine(without("export-night", "meta.guild"));
   });
 
   it("wants each import's own parts", () => {
@@ -297,59 +303,183 @@ describe("the validator", () => {
     problem(setting("import-night", "raids.0.picks.0.p", 99), "names a person who isn't in people");
     problem(setting("import-night", "raids.0.groups", [[1], [2], [3], [4], [5], [6], [7], [8], [9]]), "more than 8 subgroups");
     problem(setting("import-night", "raids.0.bench", [99]), "isn't in people");
-    problem(setting("import-night", "raids.0.effort.expects", ["tea"]), "is not one of flask");
     problem(setting("import-night", "raids.0.size", 25.5), "size");
     problem(setting("import-night", "raids.0.optional", "yes"), "optional");
     problem(setting("import-night", "raids.0.picks.0.guid", "Pet-0-1"), "guid");
-    problem(setting("import-night", "raids.0.loot.items.0.key", false), "only ever true");
+    problem(setting("import-night", "raids.0.loot.items.0.key", "yes"), "key");
     problem(setting("import-night", "raids.0.loot.items.0.specs", [["mage"]]), "class:tab");
     problem(setting("import-night", "raids.0.loot.items.0.order", [[]]), "needs at least 1");
     problem(setting("import-night", "raids.0.loot.items.2.hard", 99), "isn't in people");
     problem(without("import-night", "raids.0.assignments.0.lists.0.slots.0.p"), "p: is required");
-    assert.deepEqual(validate(setting("import-night", "raids.0.loot.items.2.hard", 0)), []);
+    fine(setting("import-night", "raids.0.loot.items.2.hard", 0));
+  });
+
+  it("checks soft reserves and how a raid's loot is given", () => {
+    const sr = json("import-night-loot").raids[0].loot.items[0].sr;
+    assert.ok(sr.length >= 3 && sr.some((s) => s.plus === undefined) && sr.some((s) => s.plus > 0));
+    problem(setting("import-night-loot", "raids.0.loot.items.0.sr.0.p", 99), "isn't in people");
+    problem(without("import-night-loot", "raids.0.loot.items.0.sr.0.p"), "p: is required");
+    problem(setting("import-night-loot", "raids.0.loot.items.0.sr.0.plus", -1), "plus");
+    problem(setting("import-night-loot", "raids.0.loot.items.0.sr.0.plus", 1.5), "plus");
+    problem(setting("import-night-loot", "raids.0.lootBy", 3), "lootBy");
+    assert.deepEqual([...new Set(["import-priorities", "import-night-loot", "import-night"].flatMap((n) => json(n).raids.map((r) => r.lootBy)))].filter(Boolean).sort(), ["hard", "soft", "system"]);
   });
 
   it("wants every part of an export to have its fields", () => {
     problem(without(BIG, "attendance.0.zone"), "zone: is required");
+    problem(without(BIG, "attendance.0.name"), "name: is required");
     problem(without(BIG, "attendance.0.difficulty"), "difficulty: is required");
     problem(without(BIG, "attendance.0.snapshots.0.at"), "at: is required");
-    problem(setting(BIG, "attendance.0.snapshots.0.why", "now"), "why");
     problem(without(BIG, "attendance.0.snapshots.1.encounter"), "encounter: is required");
     problem(setting(BIG, "attendance.0.snapshots", []), "needs at least 1");
     problem(without(BIG, "attendance.0.snapshots.0.members.0.online"), "online: is required");
     problem(setting(BIG, "attendance.0.snapshots.0.members.0.guid", "Vex"), "guid");
     problem(setting(BIG, "attendance.0.snapshots.0.members.0.grp", 9), "grp");
-    problem(setting(BIG, "attendance.0.snapshots.0.at", 1796856700000), "earlier than the snapshot before");
+    problem(setting(BIG, "attendance.0.night", "Weekend"), "night");
+    problem(setting(BIG, "attendance.0.leader", "Vex"), "leader");
+    problem(setting(BIG, "attendance.0.lockout", 0), "lockout");
+    problem(setting(BIG, "attendance.0.standby", ["Player-9101-0F00AA1A"]), "standby[0]");
+    problem(without(BIG, "attendance.0.standby.0.name"), "name: is required");
+    problem(without(BIG, "attendance.0.standby.0.guid"), "guid: is required");
     problem(without(BIG, "loot.0.item"), "item: is required");
     problem(without(BIG, "loot.0.winner"), "winner: is required");
     problem(without(BIG, "loot.0.winner.name"), "name: is required");
-    problem(setting(BIG, "loot.0.how", "stolen"), "how");
-    problem(setting(BIG, "loot.0.at", 1796847760500), "not a whole second");
+    problem(without(BIG, "loot.0.how"), "how: is required");
+    problem(without(BIG, "loot.0.dedupe"), "dedupe: is required");
     problem(setting(BIG, "loot.0.link", "item:1:0:0"), "another item's");
+    problem(setting(BIG, "loot.0.count", 0), "count");
+    problem(setting(BIG, "loot.0.count", 1.5), "count");
+    problem(setting(BIG, "loot.0.offspec", "yes"), "offspec");
+    problem(setting(BIG, "loot.0.drop", "no colon"), "drop");
+    problem(setting(BIG, "loot.0.boss", 5), "boss");
     problem(without(BIG, "pugs.0.name"), "name: is required");
     problem(without(BIG, "pugs.0.guid"), "guid: is required");
   });
 
-  it("holds a loot key to the recipe", () => {
-    problem(setting(BIG, "loot.0.dedupe", "L2|288101|Player-9101-0F00AA11|1796847760|90101|1"), "recipe");
-    problem(setting(BIG, "loot.0.dedupe", "L1|288101|Player-9101-0F00AA11|1796847760|90101|0"), "recipe");
-    problem(setting(BIG, "loot.1.dedupe", json(BIG).loot[0].dedupe), "repeats");
-    // A later export may hold only the second of two like awards: n stays what it was, counted over all recorded.
-    assert.deepEqual(validate(setting(BIG, "loot.0.dedupe", "L1|288101|Player-9101-0F00AA11|1796847760|90101|2")), []);
-    const o = clone(json(BIG));
-    o.loot = o.loot.filter((l) => l.dedupe.endsWith("|2") || !l.dedupe.includes("288110"));
-    assert.deepEqual(validate(o), []);
+  it("accepts the open values and loose forms the spec says a reader must", () => {
+    // An unknown enum value, a time that isn't a whole second, an order the snapshots weren't written in, a flag set to false.
+    fine(setting(BIG, "loot.0.how", "stolen"));
+    fine(setting(BIG, "attendance.0.snapshots.0.why", "now"));
+    fine(setting(BIG, "loot.0.at", 1796847760500));
+    fine(setting(BIG, "loot.0.at", 1));
+    fine(setting("import-night", "raids.0.effort.expects", ["tea", "flask"]));
+    fine(setting("import-night", "raids.0.loot.items.0.key", false));
+    fine(setting("import-night", "raids.0.loot.items.1.free", false));
+    fine(setting("import-night", "raids.0.lootBy", "somehow"));
+    fine(setting("import-night", "meta.from", "tomorrow"));
+    const late = clone(json(BIG));
+    late.attendance[0].snapshots.reverse();
+    fine(late);
+    fine(setting(BIG, "loot.0.count", 3));
+    fine(setting(BIG, "loot.0.drop", "90101:1"));
+  });
+
+  it("looks only at the form of a loot key: 1 to 120 characters, no control characters", () => {
+    for (const key of ["a", "any text at all", "L9|whatever", "x".repeat(120), "L1|0|0|0|0|0", "ünïcode key"]) fine(setting(BIG, "loot.0.dedupe", key));
+    // Not even the addon's recipe is checked, nor that keys differ.
+    fine(setting(BIG, "loot.1.dedupe", json(BIG).loot[0].dedupe));
+    for (const key of ["", "x".repeat(121), "line\nbreak", "tab\there", "nul\u0000", "bell\u0007"]) problem(setting(BIG, "loot.0.dedupe", key), "dedupe");
+    problem(setting(BIG, "loot.0.dedupe", 5), "dedupe");
   });
 });
 
-describe("the loot dedupe key", () => {
-  it("is the same recipe in every fixture: L1, item, winner, seconds, encounter, n", () => {
+describe("what a reader makes of a string", () => {
+  it("reads an unknown how as other, an unknown why as interval, and keeps the known ones", () => {
+    const o = clone(json(BIG));
+    o.loot[0].how = "stolen";
+    o.attendance[0].snapshots[1].why = "later";
+    const got = normalize(o);
+    assert.equal(got.loot[0].how, "other");
+    assert.equal(got.attendance[0].snapshots[1].why, "interval");
+    assert.deepEqual(normalize(json(BIG)).loot.map((l) => l.how), json(BIG).loot.map((l) => l.how));
+    assert.deepEqual(normalize(json(BIG)).attendance[0].snapshots.map((s) => s.why), json(BIG).attendance[0].snapshots.map((s) => s.why));
+    for (const how of HOW) assert.equal(normalize({ loot: [{ how }] }).loot[0].how, how);
+  });
+
+  it("ignores an expects value it doesn't know, a lootBy it doesn't know, and a flag set to false", () => {
+    const o = clone(json("import-night"));
+    o.raids[0].effort.expects = ["tea", "flask", "food"];
+    o.raids[0].lootBy = "somehow";
+    o.raids[0].loot.items[0].key = false;
+    o.raids[0].loot.items[1].free = false;
+    const got = normalize(o);
+    assert.deepEqual(got.raids[0].effort.expects, ["flask", "food"]);
+    assert.equal("lootBy" in got.raids[0], false);
+    assert.equal("key" in got.raids[0].loot.items[0], false);
+    assert.equal("free" in got.raids[0].loot.items[1], false);
+    assert.equal(normalize(json("import-night")).raids[0].lootBy, "system");
+    assert.equal(normalize(json("import-night")).raids[0].loot.items[0].key, true);
+  });
+
+  it("sorts snapshots by time instead of refusing them, and counts a missing count as one", () => {
+    const o = clone(json(BIG));
+    const times = o.attendance[0].snapshots.map((s) => s.at);
+    o.attendance[0].snapshots.reverse();
+    assert.deepEqual(normalize(o).attendance[0].snapshots.map((s) => s.at), times);
+    assert.equal(normalize(o).loot[0].count, 1);
+    assert.equal(normalize(o).loot.find((l) => l.count === 3).count, 3);
+  });
+
+  it("reads null as absent, and does not change what it was given", () => {
+    const o = clone(json(BIG));
+    o.loot[0].note = null;
+    o.pugs[0].cls = null;
+    const before = JSON.stringify(o);
+    const got = normalize(o);
+    assert.equal("note" in got.loot[0], false);
+    assert.equal("cls" in got.pugs[0], false);
+    assert.equal(JSON.stringify(o), before);
+  });
+
+  it("still refuses what it can't use: a missing field, or a value of the wrong type", () => {
+    // The open rules are only for the values of an enum. A type is never read loosely.
+    assert.ok(validate(setting2("loot.0.how", 5)).length > 0);
+    assert.ok(validate(setting2("attendance.0.snapshots.0.why", 5)).length > 0);
+    assert.ok(validate(setting2("loot.0.item", "288101")).length > 0);
+  });
+  const setting2 = (path, value) => {
+    const o = clone(json(BIG));
+    const keys = path.split(".");
+    let at = o;
+    for (const k of keys.slice(0, -1)) at = at[/^\d+$/.test(k) ? Number(k) : k];
+    at[keys.at(-1)] = value;
+    return o;
+  };
+});
+
+describe("the frozen schema", () => {
+  // A field's type never changes in version 1 (contract/README.md, "Versions"). contract/schema-v1.json lists every
+  // field the fixtures use and its type. A new field is added to it deliberately (`node tools/contract-fixtures.mjs
+  // --schema` adds the new ones and refuses to change an old one), and a type that differs fails here.
+  const frozen = JSON.parse(readFileSync(join(import.meta.dirname, "..", "contract", "schema-v1.json"), "utf8"));
+  const now = typesOf(names.map(json));
+
+  it("holds every field the fixtures use, with the type it was frozen with", () => {
+    for (const [path, type] of Object.entries(now)) assert.equal(frozen[path], type, path);
+  });
+
+  it("is used in full by the fixtures, so every frozen field is tested", () => {
+    for (const path of Object.keys(frozen)) assert.ok(path in now, `${path} is in no fixture`);
+  });
+
+  it("has no field with two types", () => {
+    for (const [path, type] of Object.entries(frozen)) assert.doesNotMatch(type, /\|/, path);
+  });
+
+  it("would catch a type that changed", () => {
+    const changed = clone(json(BIG));
+    changed.loot[0].item = "288101";
+    assert.notEqual(typesOf([changed, ...names.filter((n) => n !== BIG).map(json)])["$.loot[].item"], frozen["$.loot[].item"]);
+  });
+});
+
+describe("the addon's own recipe for loot keys", () => {
+  it("is the same in every fixture: L1, item, winner, seconds, encounter, n", () => {
     for (const name of exports_) {
       const loot = json(name).loot ?? [];
       assert.deepEqual(dedupeAll(loot), loot.map((l) => l.dedupe), name);
     }
-    const loot = json(BIG).loot;
-    assert.equal(loot[0].dedupe, "L1|288101|Player-9101-0F00AA11|1796847760|90101|1");
+    assert.equal(json(BIG).loot[0].dedupe, "L1|288101|Player-9101-0F00AA11|1796847760|90101|1");
   });
 
   it("counts awards that match in everything else, and only those", () => {
@@ -374,11 +504,177 @@ describe("the loot dedupe key", () => {
     assert.notEqual(dedupeKey({ item: 1, winner: { name: "zed" }, at: 1000 }, 1), dedupeKey({ item: 1, winner: { name: "Zed" }, at: 1000 }, 1));
   });
 
-  it("is not hashed, and short", () => {
-    for (const l of json(BIG).loot) {
-      assert.ok(l.dedupe.length <= 80);
-      assert.match(l.dedupe, /^L1\|\d+\|(Player-\d+-[0-9A-F]+|~[^|]+)\|\d+\|\d+\|\d+$/);
+  it("takes the whole second below a time that isn't one, is not hashed, and is short", () => {
+    assert.equal(dedupeKey({ item: 1, winner: { name: "Z" }, at: 1999 }, 1), "L1|1|~Z|1|0|1");
+    for (const name of exports_)
+      for (const l of json(name).loot ?? []) {
+        assert.ok(l.dedupe.length <= 80);
+        assert.match(l.dedupe, /^L1\|\d+\|(Player-\d+-[0-9A-F]+|~[^|]+)\|\d+\|\d+\|\d+$/);
+      }
+  });
+});
+
+describe("two recorders of one night", () => {
+  const first = () => json(BIG);
+  const second = () => json("export-night-second-recorder");
+  const third = () => {
+    const o = clone(first());
+    o.meta.by = { guid: "Player-9101-0F00AA17", name: "Brann Coldharbor" };
+    o.meta.id = "mgq1k2zv.00000003";
+    for (const l of o.loot) l.at += 2000;
+    dedupeAll(o.loot).forEach((k, i) => (o.loot[i].dedupe = k));
+    return o;
+  };
+
+  it("have different keys for the same awards, and different raid ids", () => {
+    assert.equal(second().loot.length, first().loot.length);
+    for (const [a, b] of first().loot.map((l, i) => [l, second().loot[i]])) {
+      assert.equal(b.at - a.at, 1000);
+      assert.notEqual(a.dedupe, b.dedupe);
     }
+    assert.deepEqual(second().attendance.map((r) => r.id.split(":")[0]), Array(3).fill(second().meta.by.guid));
+    assert.equal(new Set([...first().attendance, ...second().attendance].map((r) => r.id)).size, 6);
+    assert.notEqual(second().meta.by.guid, first().meta.by.guid);
+  });
+
+  it("add an award once: a known key is skipped, a like award from another recorder is matched", () => {
+    const store = [];
+    assert.deepEqual(importLoot(store, first()), { added: 8, matched: 0, skipped: 0 });
+    assert.deepEqual(importLoot(store, first()), { added: 0, matched: 0, skipped: 8 }, "the same string again");
+    assert.deepEqual(importLoot(store, second()), { added: 0, matched: 8, skipped: 0 });
+    assert.equal(store.length, 8);
+    assert.ok(store.every((e) => e.keys.length === 2 && e.recorders.length === 2));
+    assert.deepEqual(importLoot(store, second()), { added: 0, matched: 0, skipped: 8 }, "the second recorder's string again");
+    assert.deepEqual(importLoot(store, third()), { added: 0, matched: 8, skipped: 0 }, "and a third");
+    assert.ok(store.every((e) => e.keys.length === 3));
+    // The keys are text the site never parses: every alias of an award finds it.
+    for (const split of ["export-night-split-4"]) assert.deepEqual(importLoot(store, json(split)), { added: 0, matched: 0, skipped: 8 });
+  });
+
+  it("match in either order, and the k-th like award takes the k-th like candidate", () => {
+    const store = [];
+    importLoot(store, second());
+    assert.deepEqual(importLoot(store, first()), { added: 0, matched: 8, skipped: 0 });
+    const tokens = store.filter((e) => e.award.item === 288110);
+    assert.equal(tokens.length, 2);
+    assert.notEqual(tokens[0], tokens[1]);
+    // Each token award took one of the other recorder's, not both onto one.
+    const keys = tokens.map((e) => e.keys.sort().join(" "));
+    assert.equal(new Set(keys).size, 2);
+    assert.ok(tokens.every((e) => e.keys.length === 2));
+  });
+
+  it("don't match when the winner, the item, the boss or the time differ, or it is the same recorder's", () => {
+    const run = (change) => {
+      const store = [];
+      importLoot(store, first());
+      const o = second();
+      change(o.loot);
+      return importLoot(store, o);
+    };
+    assert.deepEqual(run(() => {}), { added: 0, matched: 8, skipped: 0 });
+    assert.equal(run((l) => (l[0].winner = { guid: l[1].winner.guid, name: l[1].winner.name })).added, 1, "winner");
+    assert.equal(run((l) => (l[0].item = 288199)).added, 1, "item");
+    assert.equal(run((l) => (l[0].encounter = 90102)).added, 1, "boss");
+    assert.equal(run((l) => delete l[0].encounter).added, 1, "one has a boss and the other none");
+    // 10 s with a boss, and 120 s for a trade, a disenchant or a bank deposit.
+    assert.equal(run((l) => (l[0].at += 9000)).added, 0, "within 10 s");
+    assert.equal(run((l) => (l[0].at += 10_000)).added, 1, "past 10 s");
+    assert.equal(run((l) => (l[7].at += 100_000)).added, 0, "a trade within 120 s");
+    assert.equal(run((l) => (l[7].at += 120_000)).added, 1, "a trade past 120 s");
+    assert.equal(run((l) => (l[4].at += 100_000)).added, 0, "a disenchant within 120 s");
+    // A name matches when either side has no GUID, and by the exact name.
+    assert.equal(run((l) => (l[6].winner = { name: l[6].winner.name })).added, 0);
+    assert.equal(run((l) => (l[6].winner = { name: "zed thornwick" })).added, 1, "a name is compared exactly");
+    assert.equal(run((l) => (l[2].winner = { name: l[2].winner.name })).added, 0, "a name only, against a GUID and the same name");
+    // The same recorder's second copy is its own award: a recorder's two like awards are two.
+    const store = [];
+    importLoot(store, first());
+    const again = clone(first());
+    again.meta.id = "mgq1k2zx.00000009";
+    again.loot.forEach((l) => (l.dedupe += "b"));
+    assert.deepEqual(importLoot(store, again), { added: 8, matched: 0, skipped: 0 });
+  });
+
+  it("are one run for each raid, by zone, span, kill and members", () => {
+    const entries = [...first().attendance.map((raid) => ({ by: "a", raid })), ...second().attendance.map((raid) => ({ by: "b", raid }))];
+    const runs = runsOf(entries);
+    assert.equal(runs.length, 3);
+    assert.ok(runs.every((r) => r.length === 2 && r[0].raid.zone === r[1].raid.zone));
+    // Everyone from either recorder, and the people on standby, are in the run.
+    const run1 = presentIn(runs.find((r) => r[0].raid.zone === 5011));
+    assert.ok(run1.has("Player-9101-0F00AA1A"), "standby");
+    assert.equal(run1.size, 10);
+    assert.equal(presentIn(runs.find((r) => r[0].raid.zone === 5013)).size, 7 + 1 + 2);
+    // Closed, since every raid has a leave snapshot, and open without one.
+    assert.ok(runs.every((r) => !runIsOpen(r)));
+    const open = clone(runs[0]);
+    for (const e of open) e.raid.snapshots = e.raid.snapshots.filter((s) => s.why !== "leave");
+    assert.equal(runIsOpen(open), true);
+  });
+
+  it("are not one run when the zone, difficulty, lockout, time, members or kill differ", () => {
+    const a = first().attendance[0];
+    const other = (change) => {
+      const b = clone(second().attendance[0]);
+      change(b);
+      return sameRun(a, b);
+    };
+    assert.equal(other(() => {}), true);
+    assert.equal(other((b) => (b.zone = 5012)), false);
+    assert.equal(other((b) => (b.difficulty = 148)), false);
+    assert.equal(other((b) => (b.lockout = 1)), false);
+    assert.equal(other((b) => delete b.lockout), true, "a missing lockout doesn't separate them");
+    // Two groups at once never meet: no one is in both.
+    assert.equal(other((b) => b.snapshots.forEach((s) => (s.members = s.members.map((m) => ({ ...m, guid: m.guid.replace("0F00AA", "0F00CC") }))))), false);
+    // A kill of one encounter more than 90 s from the other recorder's is another kill, so another run.
+    assert.equal(other((b) => b.snapshots.filter((s) => s.why === "kill").forEach((s) => (s.at += 5 * 60_000))), false);
+    assert.equal(other((b) => b.snapshots.filter((s) => s.why === "kill").forEach((s) => (s.at += 60_000))), true, "a kill a minute apart is the same kill");
+    // Far apart in time: a gap of more than ten minutes is not adjacent, and a smaller gap is.
+    const shift = (ms) => (b) => b.snapshots.forEach((s) => (s.at += ms));
+    assert.equal(other(shift(60 * 60_000)), false);
+    // Without kills to compare, only the gap counts: the first raid's span ends 40 minutes in.
+    const quiet = (ms) => (b) => {
+      b.snapshots = b.snapshots.filter((s) => s.why !== "kill");
+      shift(ms)(b);
+    };
+    assert.equal(other(quiet(49 * 60_000)), true, "adjacent: nine minutes between");
+    assert.equal(other(quiet(51 * 60_000)), false, "eleven minutes between");
+    // One recorder's entries are never joined to each other.
+    assert.equal(runsOf([{ by: "a", raid: a }, { by: "a", raid: clone(a) }]).length, 2);
+  });
+
+  it("add snapshots by recorder, raid id and time, so a repeat or a piece of a raid changes nothing", () => {
+    const store = new Map();
+    upsertAttendance(store, first());
+    const count = () => [...store.values()].map((e) => e.raid.snapshots.length);
+    assert.deepEqual(count(), [7, 6, 4]);
+    upsertAttendance(store, first());
+    assert.deepEqual(count(), [7, 6, 4]);
+    for (const n of [1, 2, 3]) upsertAttendance(store, json(`export-night-split-${n}`));
+    assert.deepEqual(count(), [7, 6, 4]);
+    // The second recorder is kept apart; a run is the union of both.
+    upsertAttendance(store, second());
+    assert.equal(store.size, 6);
+    const runs = runsOf([...store.values()]);
+    assert.equal(runs.length, 3);
+    // A raid the site had only in part gets the rest.
+    const partial = new Map();
+    const half = clone(first());
+    half.attendance[0].snapshots = half.attendance[0].snapshots.slice(0, 3);
+    upsertAttendance(partial, half);
+    assert.equal([...partial.values()][0].raid.snapshots.length, 3);
+    upsertAttendance(partial, first());
+    assert.equal([...partial.values()][0].raid.snapshots.length, 7);
+  });
+
+  it("split into strings that each read alone and together make the night", () => {
+    const parts = [1, 2, 3, 4].map((n) => json(`export-night-split-${n}`));
+    assert.equal(new Set(parts.map((p) => p.meta.id)).size, 4);
+    assert.deepEqual(parts.slice(0, 3).flatMap((p) => p.attendance), first().attendance);
+    assert.deepEqual(parts[3].loot, first().loot);
+    assert.deepEqual(parts[3].pugs, first().pugs);
+    assert.ok(parts.every((p) => readString(encode(p), "site").ok));
   });
 });
 
@@ -389,27 +685,42 @@ describe("a long night", () => {
   const word = (n) => Array.from({ length: n }, () => "abcdefghijklmnopqrstuvwxyz"[Math.floor(rnd() * 26)]).join("");
   const hex = () => Array.from({ length: 8 }, () => "0123456789ABCDEF"[Math.floor(rnd() * 16)]).join("");
   const players = Array.from({ length: 40 }, (_, i) => ({ guid: `Player-9101-${hex()}`, name: `${word(5)} ${word(8)}`, cls: ["mage", "warrior", "priest", "rogue"][i % 4] }));
+  const members = (k, churn) => players.map((p, i) => ({ ...p, grp: 1 + Math.floor(i / 5), online: !(churn && k % 3 === 0 && i === 5), ...(churn && k % 3 === 0 && i === 5 ? {} : { zone: "Test Hold" }) }));
   const raid = (zone, count, churn) => ({
     id: `${players[0].guid}:${zone}:1796846700`,
     zone,
+    name: "Test Hold",
     difficulty: 9,
     size: 40,
     snapshots: Array.from({ length: count }, (_, k) => ({
       at: 1796846700000 + k * 300000,
       why: k === 0 ? "zonein" : k === count - 1 ? "leave" : k % 4 === 0 ? "pull" : "interval",
       ...(k > 0 && k < count - 1 && k % 4 === 0 ? { encounter: 1 + (k % 5) } : {}),
-      members: players.map((p, i) => ({ ...p, grp: 1 + Math.floor(i / 5), online: !(churn && k % 3 === 0 && i === 5), ...(churn && k % 3 === 0 && i === 5 ? {} : { zone: "Test Hold" }) })),
+      members: members(k, churn),
     })),
   });
-  const night = (count, churn) => ({
+  const wrap = (attendance, extra = {}) => ({
     v: 1,
     kind: "export",
-    meta: { id: "mgq1k2zt.00000001", made: 1796864400000, addon: "0.1.0", client: { version: "1.60.1", build: 70532, interface: 16001 }, by: { guid: players[0].guid, name: players[0].name } },
-    attendance: [raid(5011, count, churn), raid(5012, count, churn), raid(5013, count, churn)],
-    loot: json(BIG).loot,
-    pugs: json(BIG).pugs,
+    meta: { id: "mgq1k2zt.00000001", made: 1796864400000, addon: "0.1.0", client: { version: "1.60.1", build: 70532, interface: 16001, locale: "enUS" }, by: { guid: players[0].guid, name: players[0].name }, realm: "Classic Beta PvP" },
+    attendance,
+    ...extra,
   });
+  const night = (count, churn) => wrap([raid(5011, count, churn), raid(5012, count, churn), raid(5013, count, churn)], { loot: json(BIG).loot, pugs: json(BIG).pugs });
   const snapshotsOf = (o) => (o.attendance ?? []).flatMap((r) => r.snapshots);
+  const readAll = (strings) => strings.map((s) => decode(s).value);
+  const within = (strings, limit = WRITE_TEXT) => {
+    for (const s of strings) {
+      assert.ok(s.length <= limit, `${s.length} characters`);
+      assert.ok(Buffer.byteLength(JSON.stringify(decode(s).value)) <= WRITE_JSON);
+    }
+  };
+  /** The raids' snapshots from several strings joined by raid id and time, the way the site joins them. */
+  const joined = (parts) => {
+    const store = new Map();
+    for (const p of parts) upsertAttendance(store, p);
+    return [...store.values()].map((e) => e.raid);
+  };
 
   it("fits as it is when it is short enough", () => {
     const o = night(40, false);
@@ -418,14 +729,13 @@ describe("a long night", () => {
     assert.deepEqual(decode(fit(o)[0]).value, o);
   });
 
-  it("drops repeated interval snapshots first, then thins, and keeps every other kind", () => {
+  it("drops repeated interval snapshots first, and keeps every other kind", () => {
     const o = night(100, false);
     assert.ok(Buffer.byteLength(JSON.stringify(o)) > WRITE_JSON, "too long to send whole");
     const strings = fit(o);
     assert.equal(strings.length, 1);
-    assert.ok(strings[0].length <= WRITE_TEXT);
+    within(strings);
     const got = decode(strings[0]).value;
-    assert.ok(Buffer.byteLength(JSON.stringify(got)) <= WRITE_JSON);
     assert.deepEqual(validate(got), []);
     const not = (s) => s.why !== "interval";
     assert.deepEqual(snapshotsOf(got).filter(not), snapshotsOf(o).filter(not));
@@ -435,29 +745,63 @@ describe("a long night", () => {
     assert.equal(snapshotsOf(got).filter((s) => s.why === "interval").length, 0);
   });
 
-  it("thins interval snapshots that did change, oldest to newest evenly", () => {
+  it("then thins the interval snapshots that did change to a quarter", () => {
     const o = night(100, true);
     const strings = fit(o);
-    assert.equal(strings.length, 1);
-    const got = decode(strings[0]).value;
-    assert.deepEqual(validate(got), []);
-    assert.ok(Buffer.byteLength(JSON.stringify(got)) <= WRITE_JSON);
-    assert.ok(snapshotsOf(got).length < snapshotsOf(o).length);
-    assert.deepEqual(snapshotsOf(got).filter((s) => s.why !== "interval"), snapshotsOf(o).filter((s) => s.why !== "interval"));
+    within(strings);
+    const parts = readAll(strings);
+    assert.ok(parts.every((p) => validate(p).length === 0));
+    const kept = parts.flatMap(snapshotsOf);
+    const interval = kept.filter((s) => s.why === "interval");
+    assert.ok(interval.length > 0 && interval.length < snapshotsOf(o).filter((s) => s.why === "interval").length / 3);
+    assert.deepEqual(kept.filter((s) => s.why !== "interval"), snapshotsOf(o).filter((s) => s.why !== "interval"));
   });
 
-  it("splits into one string for each raid, and one for loot and pugs, each readable alone", () => {
+  it("then makes a string for each raid and one for loot and pugs, each readable alone", () => {
     const o = night(100, true);
-    const strings = fit(o, 5000);
-    assert.equal(strings.length, 4);
+    const strings = fit(o, 6000);
+    within(strings, 6000);
     const parts = strings.map((s) => readString(s, "site"));
     assert.ok(parts.every((p) => p.ok));
-    assert.deepEqual(parts.map((p) => validate(p.value)), [[], [], [], []]);
-    assert.equal(new Set(parts.map((p) => p.value.meta.id)).size, 4, "each has its own id");
-    assert.deepEqual(parts.slice(0, 3).map((p) => p.value.attendance.map((r) => r.id)), o.attendance.map((r) => [r.id]));
-    assert.equal(parts[3].value.attendance, undefined);
-    assert.deepEqual(parts[3].value.loot, o.loot);
-    assert.deepEqual(parts[3].value.pugs, o.pugs);
+    assert.ok(parts.every((p) => validate(p.value).length === 0));
+    assert.equal(new Set(parts.map((p) => p.value.meta.id)).size, parts.length, "each has its own id");
+    assert.ok(parts.length >= 4);
+    assert.deepEqual(parts.at(-1).value.loot, o.loot);
+    assert.deepEqual(parts.at(-1).value.pugs, o.pugs);
+    assert.equal(parts.at(-1).value.attendance, undefined);
     assert.ok(parts.every((p) => p.value.meta.by.guid === o.meta.by.guid));
+    // Together they hold every kind of snapshot but interval, and no raid is missing.
+    assert.deepEqual(joined(parts.map((p) => p.value)).map((r) => r.id), o.attendance.map((r) => r.id));
+    assert.deepEqual(joined(parts.map((p) => p.value)).flatMap((r) => r.snapshots).filter((s) => s.why !== "interval"), snapshotsOf(o).filter((s) => s.why !== "interval"));
+  });
+
+  it("cuts a raid too big for one string into pieces that share its id", () => {
+    // 250 pulls and wipes: none can be left out, and 250 snapshots of 40 is about 1 MB of JSON.
+    const big = raid(5011, 252, false);
+    for (const [k, s] of big.snapshots.entries()) if (k > 0 && k < 251) Object.assign(s, { why: k % 2 ? "pull" : "wipe", encounter: 1 + (k % 7) });
+    const o = wrap([big]);
+    assert.ok(Buffer.byteLength(JSON.stringify(o)) > WRITE_JSON);
+    const strings = fit(o);
+    assert.ok(strings.length >= 2, `${strings.length} strings`);
+    within(strings);
+    const parts = readAll(strings);
+    assert.equal(new Set(parts.map((p) => p.meta.id)).size, parts.length);
+    assert.ok(parts.every((p) => p.attendance.length === 1 && p.attendance[0].id === big.id));
+    assert.ok(parts.every((p) => validate(p).length === 0));
+    assert.ok(parts.every((p) => readString(encode(p), "site").ok));
+    const [whole] = joined(parts);
+    assert.deepEqual(whole.snapshots, big.snapshots);
+    // The pieces are in order and none repeats a time.
+    const times = parts.flatMap((p) => p.attendance[0].snapshots.map((s) => s.at));
+    assert.deepEqual(times, [...times].sort((a, b) => a - b));
+    assert.equal(new Set(times).size, times.length);
+  });
+
+  it("keeps every string under both limits however it is cut", () => {
+    for (const [count, churn] of [[30, false], [100, true], [200, true]]) {
+      const o = night(count, churn);
+      within(fit(o));
+      within(fit(o, 20_000), 20_000);
+    }
   });
 });

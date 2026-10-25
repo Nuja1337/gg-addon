@@ -146,17 +146,19 @@ The addon and the site talk in one kind of string, both ways, and integrate with
 instead"). **The format is in [contract/README.md](../contract/README.md)**, version 1, with a fixture of every import
 and export in `contract/fixtures/` (each as `.json` and `.gg1.txt`). `npm test` checks the fixtures against it
 (`test/contract.test.mjs`). The site's tests read the same files, so both ends agree. It replaces the sketch that was
-here (Oct 20), and where this file still describes a field of the string, contract/README.md wins.
+here, and where this file still describes a field of the string, contract/README.md wins.
 
 What the string holds, in short: `GG1:` and standard base64 of the zlib-wrapped deflate (RFC 1950) of UTF-8 JSON of one
 object with `v` (1), `kind` (`import` or `export`) and `meta`. Imports (`meta.from`: `priorities`, `night-loot`,
 `night-assignments`, `night`) carry `guild`, `night`, `people` and `raids[]`: each raid with its instance id, effort
 level, picks, groups, bench, loot priorities and assignments. Exports carry `attendance` (snapshots grouped by raid),
-`loot` (each with a `dedupe` key) and `pugs`.
+`loot` (each with a `dedupe` key) and `pugs`. More than one player's addon may export the same raid, and the contract
+says how the site joins them.
 
 ### What is decided, and what is a proposal
 
-**Decided** (the site's code makes it today, an earlier decision here says so, or it follows):
+**Decided** (the site's code makes it today, an earlier decision here says so, an architect's review settled it, or it
+follows):
 - The packing: `GG1:`, standard base64 with padding, zlib-wrapped deflate (what the site writes now, not raw deflate),
   UTF-8 JSON; readers strip whitespace.
 - `v` is an integer that changes only for a break. New fields, parts and `meta.from` values never change it. Readers
@@ -167,28 +169,40 @@ level, picks, groups, bench, loot priorities and assignments. Exports carry `att
 - The 1 MiB limit on unpacked JSON (the site's today).
 - The four imports and their parts. A night is `raids[]`, and everything that differs by raid (effort, picks, groups,
   bench, loot, assignments) sits in that raid's entry.
-- The export's three parts, their fields, and `how` (the eight values the site's ledger takes).
-- `meta`: `made`, `site`, `latest` (imports); `id`, `addon`, `client` (exports).
+- The export's three parts and their fields. `meta`: `made`, `site` (the site's semver), `latest` (imports); `id`,
+  `addon`, `client` (with `locale`), `by`, `realm` (exports).
+- **Open enums:** an unknown `how` reads as `other`, an unknown `why` as `interval`, an unknown `expects` or `lootBy`
+  value is ignored, an unknown `from` still reads its known parts, and none is a refusal. A field's type never changes
+  (a frozen list of fields and types, `contract/schema-v1.json`, and a test hold it).
+- **Exports are facts that are only added to.** Corrections happen on the site. `undo[]` and `loot[].replaces` are
+  reserved. A raid with no `leave` snapshot is open until the end of its raid day. Readers accept at least what
+  writers may write. The addon escapes `|` in site text. One `v` serves both directions.
+- **Two recorders:** loot keys are opaque to the site, which keeps aliases and matches a like award from another
+  recorder (same item, winner and encounter, within 10 s, or 120 s for trades, disenchants and bank). Raids from
+  several recorders join into runs, and snapshots are stored by recorder, raid `id` and time. A raid's `id` is a
+  per-recorder key, not its identity.
+- **The guild:** an export whose `meta.guild` differs from the guild it is pasted into is refused; one with none is
+  read, with a warning that shows `meta.guildName`.
+- **Fields:** `standby` as `{guid, name, cls?}` objects; an attendance raid's `name` (required), `night`, `leader`
+  and `lockout`; `lootBy` and `sr` (soft reserves, with SR+ weeks) in imports; a loot award's `boss`, `count`,
+  `offspec` and the winner's `guid` from `C_LootHistory` first (the roster only on an exact, unique full-name match);
+  `meta.skew`, `meta.realm`, `meta.guildName`. `meta.night` is a hint only.
+- **How a long night is kept under the size limit:** drop repeated intervals, keep a quarter, one string for each raid,
+  keep a sixteenth, then cut a raid in pieces that share its `id`.
 
 **Proposals for the owner:**
-1. **The loot dedupe key.** The site has a place for a key and no recipe. Proposed: `L1|item|winner|seconds|encounter|n`,
-   joined and not hashed (contract/README.md, "The loot dedupe key").
+1. **The addon's loot key recipe,** `L1|item|winner|seconds|encounter|n`, joined and not hashed (contract/README.md,
+   "The addon's own recipe for its keys"). The site doesn't depend on it.
 2. **The ids:** an export's `meta.id` (`<made in base 36>.<8 random hex digits>`) and a raid's `id` in `attendance`
    (`<recorder's GUID>:<instance id>:<epoch seconds of the first snapshot>`).
-3. **Written size limits:** 65,536 characters of text and 768 KiB of JSON, and how a long night is kept under them
-   (drop repeated interval snapshots, thin the rest, then one string for each raid). The text limit waits on the
-   launch-day probe's paste boxes (docs/RESEARCH.md).
+3. **Written size limits:** 65,536 characters of text and 768 KiB of JSON. The text limit waits on the launch-day
+   probe's paste boxes (docs/RESEARCH.md).
 4. **`meta.by`** is whoever recorded the export, not the raid leader (the leader may not run the addon).
-5. **`meta.site`** as the date of the site's deploy.
-6. **The site refuses an export tied to another guild** (`meta.guild`).
-7. **Open enums:** a `how` the reader doesn't know is read as `other` (so `hard` and `bid` can be added for M5
-   without a new `v`), and an unknown snapshot `why` is read as `interval`.
-8. **`standby`:** a raid's list of GUIDs the leader marked on standby, never in the snapshots.
-9. **Loot winners:** `guid` is optional (the loot events give names), and the addon fills it from the raid roster when
-   the name matches.
+5. **`drop`**, `"<encounter id>:<loot list key>"` from `C_LootHistory`, waits on the launch-day probe, which records
+   what identifies a drop (docs/RESEARCH.md).
+6. **The run rule's numbers:** adjacent means a gap of 10 minutes or less, and a shared kill is within 90 seconds.
 
-**Left to the site, not in the contract:** how it merges two officers' attendance for one raid, and whether it flags
-awards for the same item and winner within a minute as probable repeats.
+**Left to the site, not in the contract:** how it shows a run's attendance, and how it closes a raid left open.
 
 **Changes from the string the site makes today** (nothing has shipped; it is locked until the addon is out): `at`
 becomes `meta.made`, `from` becomes `meta.from`, `meta.site` and `meta.latest` are new, `raid` and the per-raid parts

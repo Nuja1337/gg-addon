@@ -1,0 +1,11 @@
+{
+  "v": 1,
+  "kind": "export",
+  "meta": {
+    "id": "mgq1k2zt.00000000",
+    "made": 1796864400000,
+    "addon": "0.1.0-beta",
+    "client": {"version":"1.60.1","build":70532,"interface":16001},
+    "by": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"}
+  }
+}

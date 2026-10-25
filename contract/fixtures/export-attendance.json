@@ -1,0 +1,133 @@
+{
+  "v": 1,
+  "kind": "export",
+  "meta": {
+    "id": "mgq1k2zt.4fa91c07",
+    "made": 1796864400000,
+    "addon": "0.1.0-beta",
+    "client": {"version":"1.60.1","build":70532,"interface":16001},
+    "by": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"},
+    "guild": "abcd2345",
+    "night": "efgh6789"
+  },
+  "attendance": [
+    {
+      "id": "Player-9101-0F00AA11:5011:1796846700",
+      "zone": 5011,
+      "name": "Ember Vault",
+      "difficulty": 9,
+      "size": 10,
+      "standby": ["Player-9101-0F00AA1A"],
+      "snapshots": [
+        {
+          "at": 1796846700000,
+          "why": "zonein",
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA16","name":"Tamsin Quillfeather","cls":"warlock","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA17","name":"Brann Coldharbor","cls":"paladin","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield","cls":"druid","grp":2,"online":true,"zone":"Ember Vault"}
+          ]
+        },
+        {
+          "at": 1796847420000,
+          "why": "pull",
+          "encounter": 90101,
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA16","name":"Tamsin Quillfeather","cls":"warlock","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA17","name":"Brann Coldharbor","cls":"paladin","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield","cls":"druid","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA19","name":"Dorn Hollowmere","cls":"shaman","grp":2,"online":true,"zone":"Ember Vault"}
+          ]
+        },
+        {
+          "at": 1796847720000,
+          "why": "kill",
+          "encounter": 90101,
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA16","name":"Tamsin Quillfeather","cls":"warlock","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA17","name":"Brann Coldharbor","cls":"paladin","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield","cls":"druid","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA19","name":"Dorn Hollowmere","cls":"shaman","grp":2,"online":true,"zone":"Ember Vault"}
+          ]
+        },
+        {
+          "at": 1796848020000,
+          "why": "pull",
+          "encounter": 90102,
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":false},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA16","name":"Tamsin Quillfeather","cls":"warlock","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA17","name":"Brann Coldharbor","cls":"paladin","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield","cls":"druid","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA19","name":"Dorn Hollowmere","cls":"shaman","grp":2,"online":true,"zone":"Ember Vault"}
+          ]
+        },
+        {
+          "at": 1796848320000,
+          "why": "interval",
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":false},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA16","name":"Tamsin Quillfeather","cls":"warlock","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA17","name":"Brann Coldharbor","cls":"paladin","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield","cls":"druid","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA19","name":"Dorn Hollowmere","cls":"shaman","grp":2,"online":true,"zone":"Ember Vault"}
+          ]
+        },
+        {
+          "at": 1796848560000,
+          "why": "kill",
+          "encounter": 90102,
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA16","name":"Tamsin Quillfeather","cls":"warlock","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA17","name":"Brann Coldharbor","cls":"paladin","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield","cls":"druid","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA19","name":"Dorn Hollowmere","cls":"shaman","grp":2,"online":true,"zone":"Ember Vault"}
+          ]
+        },
+        {
+          "at": 1796849100000,
+          "why": "leave",
+          "members": [
+            {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper","cls":"mage","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove","cls":"warrior","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook","cls":"priest","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA14","name":"Fenn Ashdown","cls":"rogue","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA15","name":"Sable Ironmere","cls":"hunter","grp":1,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA16","name":"Tamsin Quillfeather","cls":"warlock","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA17","name":"Brann Coldharbor","cls":"paladin","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield","cls":"druid","grp":2,"online":true,"zone":"Ember Vault"},
+            {"guid":"Player-9102-0F00AA19","name":"Dorn Hollowmere","cls":"shaman","grp":2,"online":true,"zone":"Ember Vault"}
+          ]
+        }
+      ]
+    }
+  ]
+}

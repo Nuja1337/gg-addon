@@ -1,0 +1,88 @@
+{
+  "v": 1,
+  "kind": "export",
+  "meta": {
+    "id": "mgq1k2zt.9b3e17d2",
+    "made": 1796864400000,
+    "addon": "0.1.0-beta",
+    "client": {"version":"1.60.1","build":70532,"interface":16001},
+    "by": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"},
+    "guild": "abcd2345",
+    "night": "efgh6789"
+  },
+  "loot": [
+    {
+      "dedupe": "L1|288101|Player-9101-0F00AA11|1796847760|90101|1",
+      "at": 1796847760000,
+      "item": 288101,
+      "link": "item:288101:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Cinderjaw's Ember Band",
+      "quality": 4,
+      "winner": {"guid":"Player-9101-0F00AA11","name":"Vex Moonwhisper"},
+      "how": "reserve",
+      "zone": 5011,
+      "encounter": 90101
+    },
+    {
+      "dedupe": "L1|288102|Player-9101-0F00AA12|1796848585|90102|1",
+      "at": 1796848585000,
+      "item": 288102,
+      "link": "item:288102:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Vault Warden's Ward",
+      "quality": 4,
+      "winner": {"guid":"Player-9101-0F00AA12","name":"Kael Ashgrove"},
+      "how": "roll",
+      "zone": 5011,
+      "encounter": 90102
+    },
+    {
+      "dedupe": "L1|288110|Player-9101-0F00AA13|1796847761|90101|1",
+      "at": 1796847761000,
+      "item": 288110,
+      "link": "item:288110:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Cinder Token",
+      "quality": 3,
+      "winner": {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook"},
+      "how": "roll",
+      "zone": 5011,
+      "encounter": 90101
+    },
+    {
+      "dedupe": "L1|288110|Player-9101-0F00AA13|1796847761|90101|2",
+      "at": 1796847761000,
+      "item": 288110,
+      "link": "item:288110:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Cinder Token",
+      "quality": 3,
+      "winner": {"guid":"Player-9101-0F00AA13","name":"Mira Stonebrook"},
+      "how": "roll",
+      "zone": 5011,
+      "encounter": 90101
+    },
+    {
+      "dedupe": "L1|288103|Player-9102-0F00AA16|1796847762|90101|1",
+      "at": 1796847762000,
+      "item": 288103,
+      "link": "item:288103:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Emberscale Shard",
+      "quality": 3,
+      "winner": {"guid":"Player-9102-0F00AA16","name":"Tamsin Quillfeather"},
+      "how": "disenchant",
+      "zone": 5011,
+      "encounter": 90101,
+      "note": "Nobody needed it"
+    },
+    {
+      "dedupe": "L1|288201|Player-9101-0F00AA18|1796851290|90201|1",
+      "at": 1796851290000,
+      "item": 288201,
+      "link": "item:288201:0:0:0:0:0:0:0:60:0:0:0:1:1491",
+      "name": "Spire Matron's Tome",
+      "quality": 4,
+      "winner": {"guid":"Player-9101-0F00AA18","name":"Lysa Wrenfield"},
+      "how": "council",
+      "zone": 5012,
+      "encounter": 90201
+    }
+  ]
+}

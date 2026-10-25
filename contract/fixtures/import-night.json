@@ -1,0 +1,106 @@
+{
+  "v": 1,
+  "kind": "import",
+  "meta": {"site":"2026.10.25","made":1796843700000,"latest":"0.1.0","from":"night","officer":true},
+  "guild": {"handle":"abcd2345","name":"Molten Raiders"},
+  "night": {"handle":"efgh6789","title":"Weekend raids","startsAt":1796846400000},
+  "raids": [
+    {
+      "zone": 5011,
+      "name": "Ember Vault",
+      "size": 10,
+      "effort": {"name":"Locked in","expects":["flask","food","weapon","potions","engineering","misc"]},
+      "picks": [
+        {"p":1,"name":"Vex Moonwhisper","cls":"mage","guid":"Player-9101-0F00AA11"},
+        {"p":2,"name":"Kael Ashgrove","cls":"warrior","guid":"Player-9101-0F00AA12"},
+        {"p":3,"name":"Mira Stonebrook","cls":"priest","guid":"Player-9101-0F00AA13"},
+        {"p":4,"name":"Fenn Ashdown","cls":"rogue","guid":"Player-9101-0F00AA14"},
+        {"p":5,"name":"Sable Ironmere","cls":"hunter","guid":"Player-9102-0F00AA15"},
+        {"p":6,"name":"Tamsin Quillfeather","cls":"warlock","guid":"Player-9102-0F00AA16"},
+        {"p":7,"name":"Brann Coldharbor","cls":"paladin","guid":"Player-9101-0F00AA17"},
+        {"p":8,"name":"Lysa Wrenfield","cls":"druid","guid":"Player-9101-0F00AA18"},
+        {"p":9,"name":"Dorn Hollowmere","cls":"shaman","guid":"Player-9102-0F00AA19"}
+      ],
+      "groups": [[2,7,3,8,1],[4,5,6,9]],
+      "bench": [10],
+      "loot": {
+        "items": [
+          {"id":288101,"order":[[1],[2,3]],"specs":[["mage:1","warlock:3"],["priest:3"]],"key":true,"note":"Cinderjaw's ring"},
+          {"id":288102,"free":true,"specs":[["warrior:3","paladin:2"]]},
+          {"id":288103,"hard":0,"note":"Guild bank"},
+          {"id":288104,"order":[[5],[9]]}
+        ]
+      },
+      "assignments": [
+        {
+          "encounter": 90101,
+          "boss": "Cinderjaw",
+          "lists": [
+            {"name":"Tanks","slots":[{"label":"Main tank","p":[2],"note":"Face him away from the raid"},{"label":"Off tank","p":[7]}]},
+            {"name":"Interrupts","slots":[{"label":"Ember bolt","p":[4,1]},{"label":"Backup","p":[]}]}
+          ]
+        },
+        {"boss":"Vault trash","lists":[{"name":"Pulls","slots":[{"label":"Pull and mark","p":[2]}]}]}
+      ]
+    },
+    {
+      "zone": 5012,
+      "name": "Hollow Spire",
+      "size": 10,
+      "effort": {"name":"Steady","expects":["flask","food"]},
+      "picks": [
+        {"p":1,"name":"Vex Moonwhisper","cls":"mage","guid":"Player-9101-0F00AA11"},
+        {"p":2,"name":"Kael Ashgrove","cls":"warrior","guid":"Player-9101-0F00AA12"},
+        {"p":3,"name":"Mira Stonebrook","cls":"priest","guid":"Player-9101-0F00AA13"},
+        {"p":4,"name":"Fenn Ashdown","cls":"rogue","guid":"Player-9101-0F00AA14"},
+        {"p":5,"name":"Sable Ironmere","cls":"hunter","guid":"Player-9102-0F00AA15"},
+        {"p":6,"name":"Tamsin Quillfeather","cls":"warlock","guid":"Player-9102-0F00AA16"},
+        {"p":7,"name":"Brann Coldharbor","cls":"paladin","guid":"Player-9101-0F00AA17"},
+        {"p":8,"name":"Lysa Wrenfield","cls":"druid","guid":"Player-9101-0F00AA18"},
+        {"p":9,"name":"Dorn Hollowmere","cls":"shaman","guid":"Player-9102-0F00AA19"},
+        {"p":10,"name":"Pell Ravensong","cls":"priest","guid":"Player-9101-0F00AA1A"}
+      ],
+      "groups": [[2,7,3,10,8],[1,4,5,6,9]],
+      "bench": [],
+      "loot": {"items":[{"id":288201,"order":[[6],[8,10]]},{"id":288202,"hard":7}]},
+      "assignments": [
+        {
+          "encounter": 90201,
+          "boss": "Spire Matron",
+          "lists": [{"name":"Healers","slots":[{"label":"Tank healer","p":[3]},{"label":"Raid healer","p":[10,8]}]}]
+        }
+      ]
+    },
+    {
+      "zone": 5013,
+      "name": "Stone Wake",
+      "size": 10,
+      "effort": {"name":"Casual","expects":[]},
+      "optional": true,
+      "picks": [
+        {"p":1,"name":"Vex Moonwhisper","cls":"mage","guid":"Player-9101-0F00AA11"},
+        {"p":2,"name":"Kael Ashgrove","cls":"warrior","guid":"Player-9101-0F00AA12"},
+        {"p":3,"name":"Mira Dawnhaven","cls":"druid"},
+        {"p":4,"name":"Fenn Ashdown","cls":"rogue","guid":"Player-9101-0F00AA14"},
+        {"p":5,"name":"Sable Ironmere","cls":"hunter","guid":"Player-9102-0F00AA15"},
+        {"p":6,"name":"Tamsin Quillfeather","cls":"warlock","guid":"Player-9102-0F00AA16"},
+        {"p":7,"name":"Brann Coldharbor","cls":"paladin","guid":"Player-9101-0F00AA17"},
+        {"p":8,"name":"Lysa Wrenfield","cls":"druid","guid":"Player-9101-0F00AA18"}
+      ],
+      "groups": [[2,7,3,8],[1,4,5,6]],
+      "bench": [9,10]
+    }
+  ],
+  "people": [
+    {"p":1,"name":"Vex","chars":[{"name":"Vex Moonwhisper","cls":"mage","guid":"Player-9101-0F00AA11"}]},
+    {"p":2,"name":"Kael","chars":[{"name":"Kael Ashgrove","cls":"warrior","guid":"Player-9101-0F00AA12"}]},
+    {"p":3,"name":"Mira","chars":[{"name":"Mira Stonebrook","cls":"priest","guid":"Player-9101-0F00AA13"}]},
+    {"p":4,"name":"Fenn","chars":[{"name":"Fenn Ashdown","cls":"rogue","guid":"Player-9101-0F00AA14"}]},
+    {"p":5,"name":"Sable","chars":[{"name":"Sable Ironmere","cls":"hunter","guid":"Player-9102-0F00AA15"}]},
+    {"p":6,"name":"Tamsin","chars":[{"name":"Tamsin Quillfeather","cls":"warlock","guid":"Player-9102-0F00AA16"}]},
+    {"p":7,"name":"Brann","chars":[{"name":"Brann Coldharbor","cls":"paladin","guid":"Player-9101-0F00AA17"}]},
+    {"p":8,"name":"Lysa","chars":[{"name":"Lysa Wrenfield","cls":"druid","guid":"Player-9101-0F00AA18"}]},
+    {"p":9,"name":"Dorn","chars":[{"name":"Dorn Hollowmere","cls":"shaman","guid":"Player-9102-0F00AA19"}]},
+    {"p":10,"name":"Pell","chars":[{"name":"Pell Ravensong","cls":"priest","guid":"Player-9101-0F00AA1A"}]}
+  ]
+}

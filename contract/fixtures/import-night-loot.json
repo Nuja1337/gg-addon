@@ -1,0 +1,27 @@
+{
+  "v": 1,
+  "kind": "import",
+  "meta": {"site":"2026.10.25","made":1796843700000,"latest":"0.1.0","from":"night-loot","officer":true},
+  "guild": {"handle":"abcd2345","name":"Molten Raiders"},
+  "night": {"handle":"efgh6789","title":"Weekend raids","startsAt":1796846400000},
+  "raids": [
+    {
+      "zone": 5011,
+      "name": "Ember Vault",
+      "size": 10,
+      "loot": {
+        "items": [
+          {"id":288101,"order":[[1],[2,3]],"specs":[["mage:1","warlock:3"],["priest:3"]],"key":true,"note":"Cinderjaw's ring"},
+          {"id":288102,"free":true,"specs":[["warrior:3","paladin:2"]]},
+          {"id":288103,"hard":0,"note":"Guild bank"}
+        ]
+      }
+    }
+  ],
+  "people": [
+    {"p":1,"name":"Vex","chars":[{"name":"Vex Moonwhisper","cls":"mage","guid":"Player-9101-0F00AA11"}]},
+    {"p":2,"name":"Kael","chars":[{"name":"Kael Ashgrove","cls":"warrior","guid":"Player-9101-0F00AA12"}]},
+    {"p":3,"name":"Mira","chars":[{"name":"Mira Stonebrook","cls":"priest","guid":"Player-9101-0F00AA13"}]},
+    {"p":7,"name":"Brann","chars":[{"name":"Brann Coldharbor","cls":"paladin","guid":"Player-9101-0F00AA17"}]}
+  ]
+}

@@ -187,9 +187,17 @@ Checklist:
 
 9. **M1 smoke test in game** (the addon's first run on Forever's client: `GuildGolem/` copied into `_classic_beta_\Interface\AddOns`,
    or the packaged file once there is one). Recording only happens in a raid instance with a group, and Forever's first
-   raid opens about Dec 9, so on Nov 4 do the parts marked (any day) and keep the rest for the first raid. Use the dev
+   raid opens about Dec 9. So on Nov 4 turn on test recording (the next bullet) and run it all in a 5-man dungeon with a
+   party; the dungeon stands in for the raid wherever the bullets below say "raid", and the parts marked (first raid) that
+   need real raid data (the lockout, the roster's zone for a raid) are repeated in the first real raid. Use the dev
    site (the site's test copy), never the live guild. Write down what differs from what docs/PLAN.md, "What M1 chose",
    says.
+   - **(any day) Test recording.** `/gg test on`: chat says "TEST RECORDING IS ON", and `/gg status` and the window's top
+     line say so too. Form a party (two or more of you) and enter a dungeon: `/gg status` shows "Recording <dungeon> as a
+     test", and chat says combat logging is on. Pull a boss, wipe or kill it, leave the dungeon. `/gg export`, copy it from
+     the box, and paste it on the dev site: the preview should show one raid, marked as a test (the site is expected to keep
+     it apart from real attendance; if it counts it, say so). Then `/gg test off` and confirm the next dungeon records nothing
+     (`/gg status`: "Not recording"). Never leave it on for a real night.
    - **(any day) It loads.** `/gg status` prints the version, "No night imported", "Not recording", the outbox, the
      combat logging line and the client's gaps (`The client lacks: ...`). Compare the gaps with what the probe found
      (docs/RESEARCH.md, "Probe results") and note any "would not register these events" line: it names a game event the

@@ -142,8 +142,8 @@ did for the site (Gargul's priorities, MRT's notes) is its own (below, "Instead 
 ### Settings
 - Which modules are on, the five-minute snapshot interval, whether pug warnings sound, which loot method the guild
   uses, and how much to keep (raids older than a month are dropped once exported). **Built in M1:** whether combat
-  logging is turned on at zone-in to a raid (`autoLog`, on by default, `/gg log on|off`); the rest wait for their
-  milestones.
+  logging is turned on at zone-in to a raid (`autoLog`, on by default, `/gg log on|off`) and test recording
+  (`testDungeons`, off by default, `/gg test on|off`); the rest wait for their milestones.
 
 ## The contract with the site
 
@@ -275,7 +275,7 @@ game writes those to disk when the interface reloads (or on logout). So the call
 | | Milestone | Done when |
 |---|---|---|
 | M0 | **In-game tests** (docs/RESEARCH.md, "To test in game") | Name formats, guild bank on or off, loot methods and master loot, secret restrictions in raid zones: answered on the live client |
-| M1 | **Core and attendance** | The addon records a raid's snapshots and exports them; the site imports them as attendance. **Built (Oct 25), not yet run in the game.** `Core/Codec.lua` reads and writes the strings, `Core/Store.lua` keeps the saved variables with migrations and an outbox, `Core/Import.lua` reads the four imports, `Client.lua` is the launch adapter and `Core/Events.lua` the event bus. `Attendance.lua` takes the snapshots (zone-in, pull, kill, wipe, every five minutes, leave), `Export.lua` makes the export with the contract's `fit`, and `UI.lua` is the window and `/gg`. It turns combat logging on at zone-in to a raid. A scripted night of forty players in three raids over four hours exports 37 snapshots in one string of about 4.5 KB that the reference validator accepts (`test/night.test.mjs`). **What is left is the first run in the game**, "M1 smoke test in game" in docs/RESEARCH.md: inside a raid instance (Forever opens its first about Dec 9), what `GetInstanceInfo`, `GetRaidRosterInfo` and the `ENCOUNTER_*` events give, whether the roster's zone for a player inside is the instance's name, whether the edit boxes take a 64 KB string, and that the site's import reads what the addon wrote |
+| M1 | **Core and attendance** | The addon records a raid's snapshots and exports them; the site imports them as attendance. **Built (Oct 25), not yet run in the game.** `Core/Codec.lua` reads and writes the strings, `Core/Store.lua` keeps the saved variables with migrations and an outbox, `Core/Import.lua` reads the four imports, `Client.lua` is the launch adapter and `Core/Events.lua` the event bus. `Attendance.lua` takes the snapshots (zone-in, pull, kill, wipe, every five minutes, leave), `Export.lua` makes the export with the contract's `fit`, and `UI.lua` is the window and `/gg`. It turns combat logging on at zone-in to a raid. A scripted night of forty players in three raids over four hours exports 37 snapshots in one string of about 4.5 KB that the reference validator accepts (`test/night.test.mjs`). **What is left is the first run in the game**, "M1 smoke test in game" in docs/RESEARCH.md: on launch day in a 5-man dungeon with test recording on, then inside a raid instance (Forever opens its first about Dec 9), what `GetInstanceInfo`, `GetRaidRosterInfo` and the `ENCOUNTER_*` events give, whether the roster's zone for a player inside is the instance's name, whether the edit boxes take a 64 KB string, and that the site's import reads what the addon wrote |
 | M2 | **Tonight** | Import the plan; invite the raid and arrange its groups in one click each; each player's assignments for the boss |
 | M3 | **Pugs** | Pug lists in game with warnings; pugs seen flow back to the site |
 | M4 | **Loot recording and seeding** | Every drop, trade and disenchant in the export; reserves and priorities in tooltips and the loot window |
@@ -337,8 +337,12 @@ file that names the game.
 
 **What M1 chose where the contract is silent** (`Attendance.lua` unless it says otherwise; the numbers are constants at its top):
 1. **Where it records.** Only in a raid instance (`GetInstanceInfo`'s type is `raid`) with a group (a raid or a party). A
-   solo player in one records nothing. A 5-man dungeon records nothing, so until Forever opens its first raid the
-   recording itself cannot be tried in game.
+   solo player in one records nothing. A 5-man dungeon records nothing, unless **test recording** is on (`testDungeons`,
+   `/gg test on`, off by default): then a party in a dungeon is recorded exactly like a raid, so the whole path can be tried
+   on launch day, weeks before a raid opens. `/gg status` and the window say plainly that it is on, and the raid entry it
+   makes carries `test: true` in the export (contract/README.md, `attendance[]`, an optional field the site reads as
+   "keep apart from real raids"; fixture `export-test-dungeon`). A raid recorded while the setting is on is not marked.
+   Turning it off in a dungeon ends the recording.
 2. **One raid, or two.** A player who leaves the instance and comes back to the same one (same instance id and difficulty)
    within 30 minutes goes on with the same raid entry, with another `zonein` snapshot, because a second entry from the
    same recorder would be a second raid on the site. After 30 minutes, or into another instance or difficulty, it is a new

@@ -11,8 +11,8 @@ codec for the site's strings, the saved variables, the imports, the launch adapt
 game's functions, the event bus, and now the roster snapshots of a raid (zone-in, every pull and its kill or wipe, every
 five minutes, leaving), the export string with the contract's size rules, and a small window with `/gg` to paste an
 import and copy an export. It turns combat logging on when you enter a raid. It has not run in the game yet: the
-first run is the "M1 smoke test in game" in docs/RESEARCH.md, and recording needs a raid instance, which Forever
-opens about Dec 9. Which lines still follow retail's documented shape and wait for the launch-day pass on Forever's
+first run is the "M1 smoke test in game" in docs/RESEARCH.md. Recording needs a raid instance, which Forever opens about
+Dec 9, so on launch day it is tried in a 5-man dungeon with `/gg test on`. Which lines still follow retail's documented shape and wait for the launch-day pass on Forever's
 client are marked `unverified on Forever` in `GuildGolem/Client.lua`. The probe answered several in-game questions on
 Oct 22, outside instances (docs/RESEARCH.md, "Probe results"). The ones inside a raid are still to run.
 
@@ -22,7 +22,8 @@ Oct 22, outside instances (docs/RESEARCH.md, "Probe results"). The ones inside a
 **Import** keeps it. In a raid the addon records on its own. **Export** (or `/gg export`) makes the string of what was
 recorded since the last export and shows it, selected, in the lower box: press Ctrl+C and paste it on the site, then press
 **Pasted on the site**. `/gg status` says what the addon has and does, `/gg log off` stops it turning combat logging on
-when you enter a raid (it never turns it off).
+when you enter a raid (it never turns it off). `/gg test on` is for trying the addon before any raid is open: a party in a
+5-man dungeon is then recorded like a raid and its export is marked as a test (off by default; `/gg test off` stops it).
 
 ## What's here
 

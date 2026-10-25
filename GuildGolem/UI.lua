@@ -234,6 +234,12 @@ function UI.statusLines()
   local gaps = UI.gaps()
   lines[#lines + 1] = #gaps == 0 and "The client has everything the addon asks of it."
     or ("The client lacks: " .. table.concat(gaps, ", ") .. ".")
+
+  -- Game events the client would not let the addon listen to (Events.on found no such event).
+  local unknown = {}
+  for event in pairs(ns.Events.unknown) do unknown[#unknown + 1] = event end
+  table.sort(unknown)
+  if #unknown > 0 then lines[#lines + 1] = "The client would not register these events: " .. table.concat(unknown, ", ") .. "." end
   return lines
 end
 

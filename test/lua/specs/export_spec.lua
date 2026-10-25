@@ -251,13 +251,18 @@ T.test("it will not make an export without a player, a build, a clock or a writa
 end)
 
 -- fit -----------------------------------------------------------------------------------------------------------------------------
+--
+-- The rosters here are small (a few players) and the limits low, so that what each snapshot adds is large next to the roster
+-- itself and thinning shows in the size, and so that packing stays quick under fengari. The limits were chosen between the
+-- sizes of two steps with a margin of a sixth or more either way. test/export-fit.test.mjs compares these cuts with the
+-- reference `fit` on the same kind of night.
 
 local function member(i, online, zone)
   return { guid = guid(i), name = name(i), cls = "warrior", grp = math.floor((i - 1) / 5) + 1, online = online ~= false, zone = zone or "Ember Vault" }
 end
 
--- A raid of `snapshots` snapshots of `players`: a zone-in, intervals (changing from one to the next if `churn`) and a
--- leave.
+-- A raid of `snapshots` snapshots of `players`: a zone-in, intervals (with a different player offline in each if `churn`, so
+-- none repeats the one before) and a leave.
 local function bigRaid(id, zone, players, snapshots, churn)
   local snaps = {}
   for k = 1, snapshots do
@@ -278,6 +283,8 @@ local function exportOf(attendance, extra)
   for k, v in pairs(extra or {}) do o[k] = v end
   return o
 end
+
+local PUG = { { guid = guid(99), name = "Pug One", cls = "mage", at = 1796846700000 } }
 
 local function snapshotsOf(o)
   local out = {}
@@ -314,10 +321,9 @@ end)
 
 T.test("fit drops an interval that repeats the one before first, and keeps every other kind", function()
   local ns = start()
-  local o = exportOf({ bigRaid("r1", 5011, 40, 30, false) })
-  local limit = 1500
-  local whole = ns.Codec.encode(o)
-  T.truthy(#whole > limit, "too long to send as it is: " .. #whole)
+  local o = exportOf({ bigRaid("r1", 5011, 6, 30, false) })
+  local limit = 700
+  T.truthy(#ns.Codec.encode(o) > limit, "too long to send as it is")
   local list = ns.Export.fit(o, limit)
   T.eq(#list, 1)
   sizes(list, limit)
@@ -330,26 +336,25 @@ end)
 
 T.test("fit then keeps a quarter of the intervals that did change", function()
   local ns = start()
-  local o = exportOf({ bigRaid("r1", 5011, 40, 33, true) })
-  local limit = 3000
+  local o = exportOf({ bigRaid("r1", 5011, 3, 120, true) })
+  local limit = 1100
+  T.truthy(#ns.Codec.encode(o) > limit)
   local list = ns.Export.fit(o, limit)
   T.eq(#list, 1)
   sizes(list, limit)
-  local intervals = count(snapshotsOf(list[1].object), "interval")
-  T.eq(intervals, 8, "every fourth of 31")
-  T.eq(count(snapshotsOf(list[1].object)), 10)
+  T.eq(count(snapshotsOf(list[1].object), "interval"), 30, "every fourth of 118")
+  T.eq(count(snapshotsOf(list[1].object)), 32)
 end)
 
 T.test("fit then makes a string for each raid and one for the pugs, each with its own id and readable alone", function()
   local ns = start()
-  local o = exportOf({ bigRaid("r1", 5011, 40, 33, true), bigRaid("r2", 5012, 40, 33, true), bigRaid("r3", 5013, 40, 33, true) },
-    { pugs = { { guid = guid(99), name = "Pug One", cls = "mage", at = 1796846700000 } } })
-  local limit = 1500
+  local o = exportOf({ bigRaid("r1", 5011, 3, 80, true), bigRaid("r2", 5012, 3, 80, true), bigRaid("r3", 5013, 3, 80, true) }, { pugs = PUG })
+  local limit = 850
   local list = ns.Export.fit(o, limit)
   T.eq(#list, 4)
   sizes(list, limit)
   local ids = {}
-  for i, item in ipairs(list) do
+  for _, item in ipairs(list) do
     ids[item.object.meta.id] = true
     T.eq(item.object.meta.by.guid, guid(1))
     T.eq(read(item.text).meta.id, item.object.meta.id)
@@ -362,15 +367,44 @@ T.test("fit then makes a string for each raid and one for the pugs, each with it
   T.eq(#list[4].object.pugs, 1)
 end)
 
+T.test("fit keeps every sixteenth interval when a quarter is still too much for a string", function()
+  local ns = start()
+  local o = exportOf({ bigRaid("r1", 5011, 3, 130, true), bigRaid("r2", 5012, 3, 130, true) }, { pugs = PUG })
+  -- What a raid comes to in a string when every fourth, and when every sixteenth, interval is kept.
+  local function alone(keep)
+    local raid, n = {}, 0
+    for k, v in pairs(o.attendance[1]) do raid[k] = v end
+    raid.snapshots = {}
+    for _, s in ipairs(o.attendance[1].snapshots) do
+      if s.why ~= "interval" then
+        raid.snapshots[#raid.snapshots + 1] = s
+      else
+        if n % keep == 0 then raid.snapshots[#raid.snapshots + 1] = s end
+        n = n + 1
+      end
+    end
+    return #ns.Codec.encode(exportOf({ raid }))
+  end
+  local quarter, sixteenth = alone(4), alone(16)
+  T.truthy(sixteenth < quarter * 0.8, sixteenth .. " against " .. quarter)
+  local limit = math.floor((quarter + sixteenth) / 2)
+  local list = ns.Export.fit(o, limit)
+  sizes(list, limit)
+  T.eq(#list, 3, "a string for each raid and one for the pugs")
+  for r = 1, 2 do
+    T.eq(count(list[r].object.attendance[1].snapshots, "interval"), math.ceil(128 / 16), "every sixteenth of 128")
+  end
+end)
+
 T.test("fit cuts a raid that is still too big in halves that share its id, and loses no pull, kill or wipe", function()
   local ns = start()
-  local raid = bigRaid("r1", 5011, 40, 80, false)
+  local raid = bigRaid("r1", 5011, 3, 80, true)
   for k = 2, 79 do
     raid.snapshots[k].why = k % 2 == 0 and "pull" or "wipe"
     raid.snapshots[k].encounter = 1100 + k % 7
   end
   local o = exportOf({ raid })
-  local limit = 5000
+  local limit = 1150
   local list = ns.Export.fit(o, limit)
   T.truthy(#list >= 2, #list .. " strings")
   sizes(list, limit)
@@ -390,6 +424,20 @@ T.test("fit cuts a raid that is still too big in halves that share its id, and l
   local distinct = 0
   for _ in pairs(ids) do distinct = distinct + 1 end
   T.eq(distinct, #list, "each has an id of its own")
+end)
+
+T.test("fit keeps the JSON under the writers' limit as well as the text, whatever the text would be", function()
+  local ns = start()
+  -- The limit is lowered so a small export can pass it: 40 players for 30 snapshots is far over 20,000 bytes of JSON,
+  -- though it is a few thousand characters of text.
+  ns.Codec.WRITE_JSON = 20000
+  local o = exportOf({ bigRaid("r1", 5011, 40, 30, false) })
+  T.truthy(#ns.Codec.json(o) > 20000)
+  local list = ns.Export.fit(o)
+  T.eq(#list, 1)
+  T.truthy(#ns.Codec.json(list[1].object) <= 20000)
+  T.eq(count(snapshotsOf(list[1].object), "interval"), 0, "the repeats went first")
+  ns.Codec.WRITE_JSON = 786432
 end)
 
 T.test("fit gives up on one snapshot that is over the limit by itself, and says so by giving no string for it", function()

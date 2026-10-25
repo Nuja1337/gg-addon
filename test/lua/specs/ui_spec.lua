@@ -322,6 +322,17 @@ T.test("/gg status says the version, the night, the recording, the outbox and th
   T.truthy(text:find("The client lacks: encounterInProgress, loggingCombat, lootHistory, raidInfo%."), text)
 end)
 
+T.test("/gg status names the game events the client would not let the addon listen to", function()
+  local ns = start()
+  WOW.slash("/gg status")
+  T.eq(chatHas("would not register"), nil)
+  ns.Events.unknown.ZONE_CHANGED_NEW_AREA = true
+  ns.Events.unknown.UPDATE_INSTANCE_INFO = true
+  WOW.chat = {}
+  WOW.slash("/gg status")
+  T.truthy(chatHas("would not register these events: UPDATE_INSTANCE_INFO, ZONE_CHANGED_NEW_AREA%."))
+end)
+
 T.test("/gg status draws a night's title safely", function()
   local ns = start()
   local object = ns.Codec.decode(fixtureText("import-night"))

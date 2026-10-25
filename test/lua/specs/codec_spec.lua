@@ -7,9 +7,13 @@ local FIXTURES = {
   "import-night", "import-night-assignments", "import-night-loot", "import-priorities",
 }
 
+-- The writer packs at level 8 in the game (Codec.LEVEL). These tests pack a lot of data and do not care how well, and
+-- fengari is slow at the higher levels.
 local function addon()
   WOW.declareSavedVariables("GuildGolemDB")
-  return WOW.loadAddon("GuildGolem")
+  local ns = WOW.loadAddon("GuildGolem")
+  ns.Codec.LEVEL = 1
+  return ns
 end
 
 local function fixture(name, ext)

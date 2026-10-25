@@ -41,6 +41,11 @@ Codec.MAX_TEXT = 524288
 Codec.WRITE_JSON = 786432
 Codec.WRITE_TEXT = 65536
 
+-- How hard LibDeflate works at packing. Its default (5) leaves a night's export a third bigger than zlib's does, because
+-- the roster repeats from one snapshot to the next and the better levels find the repeats. 8 is the slowest and still
+-- takes well under a second for the largest string a writer may make. A reader does not care (contract/README.md).
+Codec.LEVEL = 8
+
 -- A number in the JSON is an integer with an absolute value under 10^14, since json.lua writes 14 digits.
 Codec.MAX_NUMBER = 1e14
 
@@ -139,7 +144,7 @@ end
 
 -- The string for JSON text that Codec.json made: and the JSON's length.
 function Codec.pack(text)
-  local packed = LibDeflate:CompressZlib(text)
+  local packed = LibDeflate:CompressZlib(text, { level = Codec.LEVEL })
   local out = Codec.PREFIX .. Base64.encode(packed)
   if #out > Codec.MAX_TEXT then return nil, "too-long" end
   return out, #text

@@ -289,8 +289,13 @@ M1 and the site's import come first: attendance is the owner's first ask, and it
   Its TOCs carry `## X-Curse-Project-ID: 1757198` and `## X-Wago-ID: v63QDLGb`; the projects' page text is
   `LISTING.md`. Versions follow the export format, so a new format version means a new major version, and the site
   reads every format it ever shipped.
-- **Pure Lua cores** (strings, snapshots to attendance, the loot ledger) tested outside the game with busted, against
-  fixtures shared with the site's tests, so both ends agree on the format.
+- **Pure Lua cores** (strings, snapshots to attendance, the loot ledger) tested outside the game, against fixtures
+  shared with the site's tests, so both ends agree on the format. The harness is in `test/lua/` (its README explains
+  it): fengari runs the Lua in Node under `npm test`, with the game's functions stubbed (`wow.lua`: a roster, an instance,
+  a fake clock and timers, an addon message outbox, saved variables written at a fake logout) and a Lua 5.1 shim. A job in
+  CI runs the same specs on real Lua 5.1, which has the last word on whether code stays in what 5.1 and 5.3 share.
+  A test checks that only `GuildGolem/Client.lua` (and `Libs/`) reads a game global, so the rest of the addon can be
+  tested with a fake Client and none of the game's functions.
 - **In game:** a checklist per milestone on the live client, in a raid group, before each release; the client changes
   weekly, so the research is re-checked first.
 - **The site's side** gets worker tests for every import, including bad, old and duplicate strings.

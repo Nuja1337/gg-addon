@@ -21,7 +21,7 @@ instances (docs/RESEARCH.md, "Probe results"). The ones inside a raid are still 
 | `docs/RESEARCH.md` | What Forever's client lets an addon do |
 | `tools/` | `probe-diff.mjs` compares two probe saved files and prints what changed, with names and GUIDs replaced. `GuildGolemProbe/README.md` and `docs/RESEARCH.md` ("Launch-day probe") say when to use it |
 | `LISTING.md` | The text for the CurseForge and Wago project pages |
-| `test/` | The contract's fixtures against its spec (`contract.test.mjs`). Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder (`npm test`, on Node 22 or newer). They run on every push and pull request (`.github/workflows/test.yml`) |
+| `test/` | The contract's fixtures against its spec (`contract.test.mjs`). Checks that every addon here is Lua 5.1 the game can read, with TOC files named after their folder (`npm test`, on Node 22 or newer). They run on every push and pull request (`.github/workflows/test.yml`). `test/lua/` is a harness that runs the addon's Lua in Node, with the game's functions stubbed: a Lua 5.1 shim, fengari (a Lua VM in JavaScript), a fake clock and roster, and a check that only `GuildGolem/Client.lua` calls the game. Its README says how to write a test. CI also runs the same Lua tests on real Lua 5.1 |
 
 ## Working with the site
 

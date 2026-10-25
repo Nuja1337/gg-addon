@@ -80,12 +80,14 @@ jobs:
             unzip -Z1 "${zips[0]}" | grep -qx "$f" || { echo "::error::$f is not in the zip"; exit 1; }
           done
 
-      # GitHub wraps an artifact in a zip of its own, so a download is a zip with the addon's zip inside.
+      # GitHub wraps an artifact in a zip of its own, so a download is a zip with the addon's zip inside. The packager
+      # writes into .release, a hidden folder, which upload-artifact skips unless told.
       - name: Keep the zip
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
         with:
           name: GuildGolem-zip
           path: .release/*.zip
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
 

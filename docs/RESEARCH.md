@@ -157,7 +157,7 @@ Checklist:
    one, and the sections that are new in 0.2 show as only in the second file. The tool replaces character, guild and
    realm names and GUIDs with placeholders (Player1, Guild1, `Player-S1-1`). Read its output once anyway before it goes
    into this repository.
-4. Add a row to the table below for the build, with the date and what changed.
+4. Add a row to the results table under "On each new client build" for the build, with the date and what changed.
 5. Update "Probe results" and "Not tested yet" above, and the feature table at the top where an answer changes it.
 6. If a call was missing or refused, note it here and in docs/PLAN.md where the addon relies on it.
 7. **Check what the addon assumes.** `grep -n "unverified on Forever" GuildGolem/Client.lua` lists every place the
@@ -235,11 +235,52 @@ Checklist:
    - **Report.** For each line that differs: what the client gave, which line of `Client.lua` or `Attendance.lua` assumed
      otherwise, and the fix. Remove `unverified on Forever` from the `Client.lua` lines this confirms.
 
-Results, one row per build:
+The results table, one row per build, is under "On each new client build" below.
 
-| Build | Date | What changed |
-|---|---|---|
-| | | |
+## On each new client build
+
+Do this on launch day (Nov 4, the first build) and again on every patch, since the client changes weekly. One person
+does it, in this order. The long steps are in "Launch-day probe" above and in `GuildGolemProbe/README.md`, so this
+list points to them and does not repeat them. Fill in the row at the bottom as you go, and leave a step's note empty
+only if you did not do it.
+
+1. **The site picks up the build.** The site's patch loop (its `tools/packs/`) detects the new build, ingests it and
+   builds the data. Check that the dev site shows the build number. If it does not, stop here and tell the site's
+   team, since the rest of this list compares against that data. Write down the build number (`/dump GetBuildInfo()`
+   in game gives the version and build).
+2. **Run the probe, then probe-diff.** Follow "The launch-day pass" in `GuildGolemProbe/README.md` (steps 1 to 6),
+   rename the saved file `probe-<build>-<date>.lua`, and compare it with the last build's file:
+   `node tools/probe-diff.mjs probe-<last build>.lua probe-<this build>.lua`. Read the output, then do items 5 to 8
+   of "Launch-day probe" above for anything that changed: update "Probe results" and "Not tested yet", the feature
+   table at the top, and `Client.lua`'s `unverified on Forever` marks.
+3. **Check the interface number.** The probe's `GetBuildInfo()` row (or `/dump (select(4, GetBuildInfo()))`) gives
+   it. If it is not the number in `tools/interface.json` (16001 on Oct 25), change `tools/interface.json` and the
+   `## Interface:` line in all three TOCs of `GuildGolem/`, run `npm test`, and merge. Then run the package-only
+   build (Actions, Release, Run workflow), install the zip it makes, check that the addon loads, and only then tag a
+   beta (the README's "Releasing"). If the number did not change, there is nothing to tag.
+4. **Turn on test recording and run a dungeon.** This is the first bullet of item 9 in "Launch-day probe" (`/gg test
+   on`, a party, a 5-man dungeon, a pull, then `/gg test off`). Then `/gg export`, copy the lower box with Ctrl+C
+   and paste it on the dev site's "Paste from the addon" (never the live guild). The preview should show one raid,
+   marked as a test. Note anything that differs from the last build.
+5. **Run the site's log check on the Logs folder.** The addon turns combat logging on in a recorded instance, so the
+   dungeon in step 4 leaves a `WoWCombatLog` file in `<game folder>\_classic_beta_\Logs`. The site's
+   `tools/logcheck.ts` reads it and says whether the site's parser still understands the build's log format. It is
+   coming and is not in the site's repository yet. Until it is, open the newest `WoWCombatLog*.txt`, write down its
+   size and whether it has `ENCOUNTER_START` lines, and say in the row that the check was not run.
+6. **Note the flavor folder.** Write down the folder name under the game folder (`_classic_beta_` on Oct 22) and
+   what the `.flavor.info` file inside it says. If either differs from the last row, fix every place that names the
+   folder: "Probe results" above (Install folder), item 9 of "Launch-day probe", `GuildGolemProbe/README.md` and the
+   README here.
+7. **Check CurseForge lists a game version for the interface number.** The packager turns `## Interface: 16001` into
+   game version 1.60.1 (its log says `Game version: 1.60.1`) and tags the upload with it, so the version has to exist
+   in CurseForge's list. Open the project's upload form, look in Game Versions for the number the interface number
+   maps to (the interface number is the major version, a two-digit minor and a two-digit patch run together: 1.60.1 is 16001) and for
+   WoW Forever, and write down what you see. If the version is missing, do not tag; check again the next day.
+8. **Add the row** to the table below, with what changed and your name.
+
+| Build | Date | What changed | Done by |
+|---|---|---|---|
+| | | | |
 
 ## Sources
 

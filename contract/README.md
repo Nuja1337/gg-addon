@@ -12,13 +12,15 @@ is meant to be complete: every field below is either required, or optional with 
 can be added later without a new version (below, "Versions").
 
 **Status marks.** A rule marked **Proposal** is not yet agreed with the owner. Every other rule is decided: the
-site's code does it today, docs/PLAN.md says so, or it follows from them. The list of proposals is in docs/PLAN.md,
-"The contract with the site".
+site's code does it today, docs/PLAN.md says so, an architect's review of this contract settled it, or it follows
+from them. The list of proposals is in docs/PLAN.md, "The contract with the site".
 
 **Files here.** `fixtures/` holds one example of every import and export, each as `name.json` and `name.gg1.txt`
-(below, "Fixtures"). `test/contract.test.mjs` checks them against this file (`npm test`). `test/contract-lib.mjs` is
-this file as code: the packing, a reader, a validator, the dedupe recipe and the size rules. It is the reference both
-sides' code is checked against, and nothing ships from it.
+(below, "Fixtures"). `schema-v1.json` is the frozen list of every field and its type (below, "Versions").
+`test/contract.test.mjs` checks them against this file (`npm test`). `test/contract-lib.mjs` is this file as code: the
+packing, a reader, a validator, what a reader makes of an unknown value, the addon's loot key recipe, the site's
+matching of two recorders and the size rules. It is the reference both sides' code is checked against, and nothing
+ships from it.
 
 ## The string
 
@@ -68,14 +70,20 @@ goes wrong. The Adler-32 makes a string cut short or mistyped in pasting fail as
   but those three is optional unless a table below says it's required.
 - **Numbers are integers** (no fractions, no exponents) with an absolute value under 10^14. The addon's JSON library
   writes numbers with 14 digits, and a time in milliseconds has 13.
-- **Booleans** are `true` and `false`. Flags that are only ever true (`key`, `free`) are left out instead of written
-  `false`.
+- **Booleans** are `true` and `false`. Flags that are only ever true (`key`, `free`, `offspec`) are left out instead of
+  written `false`, and a reader reads a `false` as absent.
 - **No `null`.** The addon's Lua has no null, so a writer leaves out a field that has no value. A reader treats `null`
   as the same as absent.
 - **No empty objects.** Lua can't tell `{}` from `[]`, so a writer never writes `{}`. An empty list may be written
   `[]` or left out, and a reader treats both the same. Arrays have no gaps and no `null` in them.
 - **Unknown fields are ignored** by every reader, at every depth. They are never an error, and a reader never passes
   them on as if it understood them.
+- **An unknown enum value reads as its documented default and is never a refusal.** The enums are `how` (default
+  `other`), a snapshot's `why` (default `interval`), `effort.expects` (a value it doesn't know is ignored), `lootBy`
+  (ignored) and `meta.from` (the reader still reads the parts it knows). A refusal is only for a missing required
+  field, a value of the wrong type, or a string that doesn't unpack.
+- **A field's type never changes.** A field that is a string stays a string, an integer an integer, in every version.
+  `schema-v1.json` and a test hold the line (below, "Versions").
 - **Strings** are kept as the game gave them: no trimming, no case change, no Unicode normalizing. Names are labels,
   and are compared exactly.
 
@@ -98,7 +106,8 @@ goes wrong. The Adler-32 makes a string cut short or mistyped in pasting fail as
 Every time is **epoch milliseconds, UTC**, an integer. The addon makes its times from the server's clock,
 `GetServerTime() * 1000`, never `time()` or the computer's clock (the two agreed within a second in the probe, but a
 raid leader's clock can be wrong). That makes every time the addon writes a multiple of 1000. The site writes its own
-with `Date.now()`.
+with `Date.now()`. A reader takes any positive integer as a time, whole second or not, and `meta.skew` says how far the
+computer's clock was from the server's.
 
 ## Top level and `meta`
 
@@ -113,19 +122,23 @@ with `Date.now()`.
 | Field | Type | Imports | Exports | Meaning |
 |---|---|---|---|---|
 | `made` | integer | required | required | When the string was made, epoch ms (the addon: `GetServerTime() * 1000`) |
-| `site` | string | required | | The site's version, up to 32 characters, for display and for bug reports. **Proposal:** the date of the site's deploy, `2026.10.25` |
+| `site` | string | required | | The site's version, semver like `0.36.2`, for display and for bug reports |
 | `latest` | string | required | | The newest addon version the site knows, `1.2.3` or `1.2.3-beta`. The addon says "A newer addon is out" when its own is older (compared as numbers by dot; a suffix is ignored) |
-| `from` | string | required | | Which import this is (below). A reader that doesn't know the value still reads the parts it understands |
+| `from` | string | required | | Which import this is (below). A reader that doesn't know the value still reads the parts it knows |
 | `officer` | boolean | optional | | `true` when the string carries the officers' loot tiers (best in slot, wishlist). The addon shows them only while the player is an officer in the game too |
 | `id` | string | | required | Names this export, so pasting it twice adds nothing. 1 to 64 characters of `A-Z a-z 0-9 . _ : -`. **Proposal:** `<made in base 36>.<8 random hex digits>`, like `mgq1k2zt.4fa91c07`. A new id for each press of Export, so the same *string* pasted twice is the repeat |
 | `addon` | string | | required | The addon's version, `1.2.3` or `1.2.3-beta` |
-| `client` | object | | required | `GetBuildInfo()`: `version` (string, `"1.60.1"`), `build` (integer; the game returns it as text, so the addon converts it), `interface` (integer, `16001`) |
+| `client` | object | | required | `GetBuildInfo()` and `GetLocale()`: `version` (string, `"1.60.1"`), `build` (integer; the game returns it as text, so the addon converts it), `interface` (integer, `16001`), `locale` (string, `"enUS"`) |
 | `by` | object | | required | Who recorded it: `guid` and `name` of the player pressing Export. **Proposal:** the plan said the raid leader's GUID, but the leader may not be the one with the addon |
+| `realm` | string | | required | `GetRealmName()`, a label |
+| `guildName` | string | | optional | The guild's name from `GetGuildInfo`, a label. Left out when the player has no guild |
 | `guild` | string | | optional | The guild's handle, copied from the last import. Left out when the addon never had one |
-| `night` | string | | optional | The night's handle, copied from the import the raid was run from. Left out when none |
+| `night` | string | | optional | A hint only: the night's handle from the import the addon was last given. The raid's own `night` (below) says which night it was |
+| `skew` | integer | | optional | `GetServerTime() * 1000 - time() * 1000` when the export was made, so a computer clock that is off can be told. Negative when the computer runs ahead |
 
-**Proposal:** an export whose `guild` isn't the one it is pasted into is refused, naming the guild it is for, since a
-string tied to another guild is almost always a mistake.
+**The guild.** An export whose `guild` is present and isn't the guild it is pasted into is **refused**, naming the guild
+it is for. An export with no `guild` is read, with a warning in the preview that shows `guildName`, since the officer
+has to say whose it is.
 
 ## Imports (site to addon)
 
@@ -167,6 +180,7 @@ one entry. Entries are in the night's order.
 | `zone` | integer, required | The raid's instance id. Required for `priorities`. A night's open raid (planned with no zone) leaves it out, and the addon takes whichever raid the group enters |
 | `name` | string, required | The raid's name, a label |
 | `size` | integer, optional | 10, 20 or 40 |
+| `lootBy` | string, optional | How this raid's loot is given: `soft` (soft reserves: each item's `sr`), `hard` (hard reserves) or `system` (the guild's priorities, council, DKP or EPGP: each item's `order`). A value it doesn't know is ignored |
 | `effort` | object, optional | The level the raid is played at: `name` (string, required) and `expects` (list of `flask`, `food`, `weapon`, `potions`, `engineering`, `misc`: the consumables expected at its pulls, empty for none). The site writes the level in force, so a raid that follows the night's level carries the night's |
 | `optional` | boolean, optional | `true` when it only adds to attendance and never counts against anyone |
 | `picks[]` | optional | Who plays which character in this raid, as an officer picked: `p` (a person in `people`), `name` (the character's name), `cls` and `guid` (optional) |
@@ -183,13 +197,14 @@ A person in `groups` or `bench` has a pick in the same raid, or else their `peop
 |---|---|---|
 | `id` | integer, required | The item's id |
 | `order` | list of lists of person ids | Places in line, best first. People sharing a place are tied |
+| `sr` | list of objects | The soft reserves on the item, in no order: `p` (a person in `people`, required) and `plus` (integer from 0, optional: the weeks they have reserved it in a row, for SR+ rules) |
 | `key` | `true` | One of the raid's key items |
 | `specs` | list of lists of strings | The spec order: tiers of `class:tab` (like `mage:1`), best first. On an open roll the first tier anyone in the raid plays rolls first |
 | `free` | `true` | An open roll |
 | `hard` | integer | A hard reserve. The person's id, or `0` for the guild's |
 | `note` | string | A note for the officers |
 
-An item that has no `order`, no `free` and no `hard` is listed but nobody is in line for it.
+An item that has no `order`, no `sr`, no `free` and no `hard` is listed but nobody is in line for it.
 
 ### `assignments[]`
 
@@ -216,18 +231,21 @@ A raid here means one run of one instance by one group. Two lockouts on the same
 |---|---|---|
 | `id` | string, required | Names the run, so the same run exported twice has the same id. **Proposal:** `<recorder's GUID>:<instance id>:<epoch seconds of the first snapshot>`, like `Player-9101-0F00AA11:5011:1796846700` |
 | `zone` | integer, required | The instance id |
-| `name` | string, optional | The instance's name, a label |
+| `name` | string, required | The instance's name, a label. The site files raids by name, so it is always there |
 | `difficulty` | integer, required | `GetInstanceInfo()`'s difficulty id |
 | `size` | integer, required | 10, 20 or 40 |
-| `standby` | list of GUIDs, optional | People the leader marked "on standby" for this raid. They count as there, and are not in the snapshots |
-| `snapshots[]` | required, at least one | Oldest first. A snapshot is identified by its raid `id` and its `at`; the same pair twice is the same snapshot |
+| `night` | string, optional | The site's handle of the night this raid was run for, from the import. With `zone` it names one raid of a night. Left out when the addon was not given one |
+| `leader` | string, optional | The raid leader's GUID at zone-in |
+| `lockout` | integer, optional | The saved lockout's id from `GetSavedInstanceInfo`, once the raid is saved |
+| `standby` | list of objects, optional | People the leader marked "on standby" for this raid: `guid` and `name` (required), `cls` (optional). They count as there, and are not in the snapshots |
+| `snapshots[]` | required, at least one | Any order; a reader sorts them by `at`. A snapshot is identified by its raid `id` and its `at`; the same pair twice is the same snapshot, so a raid may be sent in pieces that share its `id` |
 
 A snapshot:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `at` | integer, required | When it was taken |
-| `why` | string, required | `zonein`, `pull`, `kill`, `wipe`, `interval` (every five minutes) or `leave` (the player left or the group disbanded) |
+| `at` | integer, required | When it was taken. Writers: whole seconds, oldest first |
+| `why` | string, required | `zonein`, `pull`, `kill`, `wipe`, `interval` (every five minutes) or `leave` (the player left or the group disbanded). A reader reads another value as `interval` |
 | `encounter` | integer | The boss's encounter id. Required for `pull`, `kill` and `wipe` |
 | `members[]` | required | Everyone on the raid roster, below |
 
@@ -246,24 +264,36 @@ A **disconnect** is a member who is `online: false` in some snapshots and `true`
 group is simply no longer in the roster. The bench is `standby`: the people the plan benched who were never in the
 group.
 
+**A raid with no `leave` snapshot is still open.** The addon may be exported mid-raid, or the game may have crashed.
+The site treats the raid as running until a `leave` snapshot arrives for it (in any piece of it, from any recorder), and
+closes it at the end of its raid day if none does.
+
 ### `loot[]`: every item the addon saw handed out
 
 | Field | Type | Meaning |
 |---|---|---|
-| `dedupe` | string, required | The award's key, below. The site stores it as given and adds an award only once per key |
-| `at` | integer, required | When the award was recorded, a whole second in epoch ms |
+| `dedupe` | string, required | The award's key, an opaque text of 1 to 120 characters with no control characters (below, "Loot keys"). The site stores it and compares it, and never parses it or makes one |
+| `at` | integer, required | When the award was recorded, epoch ms. Writers: a whole second |
 | `item` | integer, required | The item's id |
 | `link` | string, required | The item link's payload as the game wrote it, from `item:` up to but not including the closing `|h`, without color codes. Its id must be `item` |
 | `name` | string, required | The item's name from the link |
 | `quality` | integer 0 to 7, optional | The game's quality: 2 uncommon, 3 rare, 4 epic, 5 legendary |
-| `winner` | object, required | Who ended up with it: `name` (required) and `guid` (optional: the loot events give a name only, and the addon fills in the GUID from the raid roster when the name matches one). For a disenchant, the disenchanter |
-| `how` | string, required | `reserve`, `roll`, `council`, `master`, `trade`, `disenchant`, `bank` or `other` |
+| `winner` | object, required | Who ended up with it: `name` (required) and `guid` (optional). For a disenchant, the disenchanter |
+| `how` | string, required | `reserve`, `roll`, `council`, `master`, `trade`, `disenchant`, `bank` or `other`. A reader reads another value as `other` |
 | `zone` | integer, optional | The instance id |
 | `encounter` | integer, optional | The boss's encounter id, when known |
+| `boss` | string, optional | The boss's name as the game showed it, a label |
+| `count` | integer from 1, optional | How many of the item went to the winner in this award. Read as 1 when absent |
+| `offspec` | `true`, optional | The winner took it for an off spec |
+| `drop` | string, optional | `<encounter id>:<loot list key>` from `C_LootHistory`, naming the drop the award came from. **Proposal**, pending the launch-day probe (docs/RESEARCH.md) |
 | `note` | string, optional | |
 
-`how` may gain values later (`hard` for a hard reserve and `bid` for an auction, both M5). A reader that gets a `how` it
-doesn't know reads it as `other`.
+**The winner's GUID.** The addon takes it from `C_LootHistory`'s `playerGUID` whenever the history has the drop. Where
+only a name is known (`ENCOUNTER_LOOT_RECEIVED` gives a name), it fills in the GUID from the raid roster only when the
+name matches exactly one member's full name ("First Surname") exactly. Otherwise it leaves `guid` out. A name is never
+guessed at.
+
+`how` may gain values later (`hard` for a hard reserve and `bid` for an auction, both M5) without a new `v`.
 
 ### `pugs[]`: players seen in the group who aren't in the guild
 
@@ -272,10 +302,42 @@ decides which list, if any, a pug is on.
 
 Later parts, such as `bank` (M6), are new optional parts.
 
-## The loot dedupe key
+### Exports are facts that are only added to
 
-**Proposal.** The site's ledger has a place for a key and a rule that a key is stored once for a guild, but no recipe
-for one yet. This is a recipe.
+An export says what the addon saw, and the site adds it. It never edits or removes what an earlier export said.
+Corrections happen on the site: an officer changes an award or an attendance there. Two names are reserved for a later
+addition, so nothing else uses them: a top-level `undo[]` and a `replaces` field on a loot award. A reader ignores them
+today, as it ignores any field it doesn't know.
+
+## Loot keys
+
+**The key is opaque.** The site stores `dedupe` as the text it is and compares it for equality. It never parses one,
+never recomputes one, and puts no meaning in its parts. So the addon may change how it makes keys without a new `v`.
+**One award can have several keys.** The site keeps the ones it has seen for an award as aliases.
+
+**What the site does with an award it is given**, in order:
+
+1. If it knows the key (as an award's key or an alias): skip it.
+2. Otherwise look for an award from the addon in the guild that is the same award recorded by another player's addon:
+   - the same item id;
+   - the same winner: the GUID when both have one, else the exact name;
+   - the same encounter id, or neither has one;
+   - `at` within **10 seconds** for an award with an encounter, and within **120 seconds** for a `trade`, a
+     `disenchant` or a `bank` award (and for any award with no encounter);
+   - a different recorder: its `meta.by.guid` is not one that already gave that award.
+
+   Of several like awards, the k-th like award in the string matches the k-th candidate not yet matched (in time
+   order), so two tokens to one player match two tokens, never one twice.
+3. A match keeps the new key as an alias of the matched award and adds nothing. No match: the award is added.
+4. The preview says how many awards were added, how many matched an award already held, and how many were skipped as
+   known.
+
+The reference is `importLoot` in `test/contract-lib.mjs`.
+
+### The addon's own recipe for its keys
+
+**Proposal.** The addon needs some way to make a key. This is the recipe it uses, `L1`. The site does not depend on
+it (above).
 
 The key is text, with these fields in this order, joined by `|`, with no hashing:
 
@@ -288,7 +350,7 @@ L1 | <item> | <winner> | <seconds> | <encounter> | <n>
 | `L1` | The recipe's name and version. A changed recipe would be `L2` |
 | `<item>` | The item's id, in decimal |
 | `<winner>` | The winner's GUID. Without one: `~` and the winner's name exactly as given |
-| `<seconds>` | `at` divided by 1000, in decimal |
+| `<seconds>` | `at` divided by 1000, dropping any fraction, in decimal |
 | `<encounter>` | The encounter id, or `0` when none |
 | `<n>` | 1, 2, 3, ... The place of this award among the awards the addon recorded for this guild that have every other part the same, in the order recorded |
 
@@ -296,14 +358,29 @@ So the same boss giving one player two of the same token in the same second make
 that item later is a different award, since its time is different.
 
 `n` counts over everything the addon has recorded, not only the awards in one string, so an award that is exported
-twice (in two exports) has the same key both times. The key is carried in each award as `dedupe`, so a reader never
-recomputes it, and a recipe change never breaks an old string. The key is at most about 80 characters. A GUID and a
-name never contain `|`. The reference is `dedupeKey` in `test/contract-lib.mjs`, and every fixture is checked against
-it.
+twice (in two exports) has the same key both times. The key is at most about 80 characters. A GUID and a name never
+contain `|`. The reference is `dedupeKey` in `test/contract-lib.mjs`, and every fixture is checked against it.
 
-What this does not do: two officers each running the addon in one raid make two sets of awards whose seconds may
-differ by one. Their awards are not merged by key. The site is free to flag awards for the same item and winner within
-a minute as probable repeats.
+Two players' addons that record one raid make keys whose seconds may differ by one, so the keys differ. That is what
+the matching above is for.
+
+## Two recorders of one raid
+
+Two or more officers may export the same raid. The site files the entries as one **run**, and takes the union.
+
+- **A raid's `id` is a key for one recorder's entry, not the raid's identity.** Snapshots are stored by recorder
+  (`meta.by.guid`), raid `id` and `at`: the same snapshot again changes nothing, and a new one is added. So an export
+  sent twice, or a raid sent in pieces that share an `id`, joins up.
+- **Entries from different recorders are one run** when all of these hold: the same `zone` and `difficulty`; the
+  `lockout` ids are the same, or either is missing; their spans (first to last snapshot) overlap or are no more than 10
+  minutes apart; at least one GUID is in both; and no encounter that both killed was killed more than 90 seconds apart
+  (a shared `kill` snapshot of one encounter within 90 seconds is the strongest sign they are one). Entries are joined
+  through others, so three recorders make one run. A recorder's own entries are never joined to each other: two groups
+  at once share no one, and two lockouts back to back are two runs.
+- **Attendance for a run is the union:** everyone in any recorder's snapshots, and everyone on any recorder's
+  `standby`. The run is open until some entry has a `leave` snapshot.
+
+The reference is `runsOf`, `sameRun` and `upsertAttendance` in `test/contract-lib.mjs`.
 
 ## Size
 
@@ -320,15 +397,18 @@ and one for each pull). The text is much smaller than the JSON, since the same G
 text for 120 snapshots in the tests).
 
 **How a long night is kept under the limit.** When the addon's string would pass a written limit, it does these in
-order, stopping when it fits:
+order, stopping at the first that makes every string fit:
 
 1. Leave out each `interval` snapshot whose roster, online states, zones and subgroups match the snapshot before it.
-2. Keep only every second `interval` snapshot, then every third, and so on up to every sixteenth.
+2. Keep only every fourth of the `interval` snapshots that remain.
 3. Make several strings: one for each raid, then one for `loot` and `pugs`. Each is a complete export on its own, with
    its own `meta.id` and the same other `meta`, and they can be pasted in any order.
+4. Keep only every sixteenth of the `interval` snapshots instead of every fourth.
+5. Cut a string that is still too big in halves by snapshots (then by awards), until each fits. The pieces of one raid
+   keep its `id`, so the site joins them (above).
 
-The other kinds of snapshot (`zonein`, `pull`, `kill`, `wipe`, `leave`) and a raid's `standby` are never left out. The
-reference is `fit` in `test/contract-lib.mjs`.
+The other kinds of snapshot (`zonein`, `pull`, `kill`, `wipe`, `leave`) and a raid's `standby` are never left out. Every
+string is under both written limits. The reference is `fit` in `test/contract-lib.mjs`.
 
 ## What a reader does
 
@@ -336,6 +416,8 @@ reference is `fit` in `test/contract-lib.mjs`.
 |---|---|---|
 | Not ours, bad text, cut short or mistyped, too long, bad JSON, `malformed` | Refuses and says the string is damaged; asks the player to copy it again | The same |
 | A field it doesn't know | Ignores it | Ignores it |
+| An enum value it doesn't know | Reads its default (above, "The JSON"); never refuses | The same |
+| A time that is not a whole second, or snapshots out of order | n/a | Reads the time; sorts the snapshots |
 | A `v` it knows or an older one | Reads it | Reads it (the site reads every version it ever shipped) |
 | A `v` newer than it knows | Refuses: **"Update the addon"** | Refuses: **"The site is behind"** |
 | The wrong way round | "That is an export; paste it on the site" | "That is an import; paste it in the addon" |
@@ -343,19 +425,34 @@ reference is `fit` in `test/contract-lib.mjs`.
 | An optional field the wrong type | Ignores that field | The same |
 | A person id, in a group or a pick, that isn't in `people` | Ignores that entry | n/a |
 | The same `meta.id` again | n/a | Adds nothing; says it was imported already |
-| A `dedupe` already stored | n/a | Adds nothing for that award; the rest of the string is still read |
-| A `how`, `why` or `from` it doesn't know | Reads `from` for the parts it understands | `how` is read as `other`; a snapshot with an unknown `why` is kept as an `interval` |
+| A `dedupe` already stored, or an award matching one from another recorder | n/a | Adds nothing for that award; the rest of the string is still read (above, "Loot keys") |
+| An export whose `meta.guild` differs from the guild it is pasted into | n/a | Refuses, naming the guild it is for |
+| An export with no `meta.guild` | n/a | Reads it, with a warning in the preview that shows `meta.guildName` |
 
 A reader checks a string field by field before using any of it, and never runs anything in it. A string is data.
 Both sides show the player the preview of what they are about to import before it's saved.
+
+**Readers accept at least what writers may write.** Every value a writer is allowed to write above (an enum value, a
+time, an order, a flag, an optional field left out or `null`) is one a reader reads. The limits are the same shape: a
+reader accepts more than a writer makes (524,288 characters against 65,536; 1 MiB against 768 KiB).
+
+**Site text is drawn safely.** The addon escapes `|` as `||` in any text from the site (names, notes, labels, titles)
+before it puts it in a window, a tooltip or a chat line, so a note cannot draw a texture, a color or a link.
+
+**One `v` serves both ways.** A string's direction is its `kind`. Imports and exports share one `v`, and a break to
+either is a new `v` for both.
 
 ## Versions
 
 - **`v` changes only for a break.** A break is a change after which a reader of the old version would read the string
   wrong: a field removed or renamed, a field's type or meaning changed, a required field added, or a value of an enum
   taken out.
-- **Not breaks:** a new optional field, a new part, a new `from`, a new value for `how`. They never change `v`. Readers
-  ignore what they don't know, so an older reader just doesn't see them.
+- **Not breaks:** a new optional field, a new part, a new `from`, a new value for `how` or `why`. They never change `v`.
+  Readers ignore what they don't know, or read it as the default, so an older reader just doesn't see them.
+- **A field's type never changes**, not even in a new `v` if the field keeps its name: a new type is a new field.
+  `schema-v1.json` lists every field of the fixtures and its type, and `npm test` fails when a fixture holds a field
+  with a type other than the one listed, or one that isn't listed. `node tools/contract-fixtures.mjs --schema` adds new
+  fields to the list and refuses to change one.
 - **A new `v` is a new major version of the addon** (docs/PLAN.md, "How it's built and tested"). The site then writes
   the old `v` for imports until the addon that reads the new one is out, and reads every `v` it ever shipped.
 - **The addon reads imports of its own `v` and older.** It refuses a newer one with "Update the addon". **The site reads
@@ -369,14 +466,16 @@ players. The guild is "Molten Raiders", and every GUID is `Player-9101-0F00AA11`
 | Fixture | What it is |
 |---|---|
 | `import-priorities` | Priorities for one raid, with a key item, a spec order, an open roll, a hard reserve for the guild, and people with and without GUIDs |
-| `import-night-loot` | A night's loot for the raid on show |
+| `import-night-loot` | A night's loot for the raid on show, as a soft-reserve night: each item's `sr`, with SR+ weeks on some |
 | `import-night-assignments` | Assignments for two raids, with a boss that has no encounter id and a slot nobody fills |
-| `import-night` | A night of three raids: three effort levels (the third optional), picks (one on an alternate character), groups, a bench in the first raid, loot and assignments |
+| `import-night` | A night of three raids: three effort levels (the third optional), a `lootBy` on two, picks (one on an alternate character), groups, a bench in the first raid, loot and assignments |
 | `export-empty` | An export with nothing in it |
 | `export-attendance` | One raid's snapshots, with a disconnect and a person on standby |
 | `export-loot` | Six awards, including two of the same token to the same player (`...|1` and `...|2`) and a disenchant |
 | `export-pugs` | Two pugs |
-| `export-night` | A night of three raids, with a disconnect in the first, a person on standby, a pug in the third, awards of every kind including a winner with no GUID and a trade, and the pugs |
+| `export-night` | A night of three raids, with a disconnect in the first, a person on standby, a pug in the third, awards of every kind including a winner with no GUID, a trade, a count of three and an off-spec roll, and the pugs |
+| `export-night-second-recorder` | The same night from another player's addon: its own raid ids, every time a second later, so its loot keys differ from `export-night`'s, and a `meta.skew` |
+| `export-night-split-1` to `-4` | `export-night` cut for size: a string for each raid, then one for the loot and pugs, each with its own `meta.id` |
 
 `node tools/contract-fixtures.mjs` writes each `.gg1.txt` from its `.json`. The strings are one line of text and a
 newline, packed with Node's own zlib. A different zlib writes different bytes for the same JSON, so a reader checks

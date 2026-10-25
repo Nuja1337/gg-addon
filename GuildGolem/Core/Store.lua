@@ -12,7 +12,9 @@
 --   site        { version, latest, made }  from the last import
 --   priorities  { [zone] = import }  the last priorities import for each raid
 --   nights      { [handle] = night }  see Import.lua
---   settings    {}
+--   settings    { autoLog = false, ... }  what the player chose; a key that is absent has its default (Store.setting)
+--   raids       { raid, ... }  what Attendance.lua recorded, oldest first (see there). Made when the first raid is
+--               recorded, so it is not part of the schema's shape: a table without it is a schema 1 table
 --   unreadable  { [key] = value }  anything a migration could not read as the shape it should be, kept as it was
 --
 -- Plain Lua; the clock comes from ns.Client, so a test can leave it out.
@@ -170,6 +172,34 @@ end
 
 function Store.warning()
   return state.warning
+end
+
+-- Settings ---------------------------------------------------------------------------------------------------------
+
+-- A setting the player chose, or `default` when they never did.
+function Store.setting(key, default)
+  local db = state.db
+  local settings = db and db.settings
+  if type(settings) == "table" and settings[key] ~= nil then return settings[key] end
+  return default
+end
+
+-- Keeps a setting. Gives true, or nil and why ("read-only", "not-ready").
+function Store.setSetting(key, value)
+  if state.readOnly then return nil, "read-only" end
+  local db = state.db
+  if not db then return nil, "not-ready" end
+  if type(db.settings) ~= "table" then db.settings = {} end
+  db.settings[key] = value
+  return true
+end
+
+-- The list of recorded raids, made on first use. Nil before Store.init.
+function Store.raids()
+  local db = state.db
+  if not db then return nil end
+  if type(db.raids) ~= "table" then db.raids = {} end
+  return db.raids
 end
 
 -- Errors -----------------------------------------------------------------------------------------------------------

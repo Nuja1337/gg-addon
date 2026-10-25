@@ -1,5 +1,5 @@
--- Starts the addon: points the pieces at each other and loads the saved variables when the game has read them. The
--- slash command and the window come with the milestones after this one (docs/PLAN.md, "Milestones").
+-- Starts the addon: points the pieces at each other, registers the slash command and loads the saved variables when the
+-- game has read them, after which the recording of attendance begins to listen (docs/PLAN.md, "Milestones").
 
 local ADDON, ns = ...
 
@@ -14,10 +14,13 @@ ns.Client.onError = function(where, message)
 end
 
 ns.Events.init()
+ns.UI.init()
 
 ns.Events.on("ADDON_LOADED", function(_, name)
   if name ~= ADDON then return end
   local status, warning = ns.Store.init()
   if warning then print("|cffff8800Guild Golem:|r " .. warning) end
   ns.loaded = status
+  ns.UI.listen()
+  ns.Attendance.init()
 end, "main")

@@ -19,4 +19,7 @@ Client.lua
 Core\Store.lua
 Core\Import.lua
 Core\Events.lua
+Attendance.lua
+Export.lua
+UI.lua
 Main.lua

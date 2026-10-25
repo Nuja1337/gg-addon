@@ -3,6 +3,8 @@
 -- same rules in JavaScript, and the tests run every fixture through both.
 --
 --   Codec.encode(object)           the string and the JSON's length, or nil, a refusal and a detail
+--   Codec.json(object)             the JSON text alone, checked the same way, and Codec.pack(text) the string for it
+--                                  (encode is the two together; a writer with a size limit measures the JSON first)
 --   Codec.decode(text)             the object, or nil and the reason it can't be (steps 1 to 5 of reading)
 --   Codec.read(text, reader)       decode, then the checks on v, kind, meta and direction (steps 6 to 9). `reader` is
 --                                  "addon" (reads imports) or "site" (reads exports). Gives the object, or nil, the
@@ -121,7 +123,9 @@ local function badNumber(value, path, seen)
   return nil
 end
 
-function Codec.encode(object)
+-- The JSON text of an object, checked as the contract wants it written: or nil, a refusal and a detail. A writer that
+-- must stay under a size limit (Export.lua) measures this before it packs anything, since packing is the slow part.
+function Codec.json(object)
   if type(object) ~= "table" then return nil, "unwritable", "a string is made from one table" end
   local bad = badNumber(object, "$", {})
   if bad then return nil, "bad-number", bad end
@@ -130,11 +134,21 @@ function Codec.encode(object)
   if not ok then return nil, "unwritable", tostring(text) end
   if not validUtf8(text) then return nil, "bad-utf8" end
   if #text > Codec.MAX_JSON then return nil, "too-big" end
+  return text
+end
 
+-- The string for JSON text that Codec.json made: and the JSON's length.
+function Codec.pack(text)
   local packed = LibDeflate:CompressZlib(text)
   local out = Codec.PREFIX .. Base64.encode(packed)
   if #out > Codec.MAX_TEXT then return nil, "too-long" end
   return out, #text
+end
+
+function Codec.encode(object)
+  local text, reason, detail = Codec.json(object)
+  if not text then return nil, reason, detail end
+  return Codec.pack(text)
 end
 
 -- Reading -------------------------------------------------------------------------------------------------------

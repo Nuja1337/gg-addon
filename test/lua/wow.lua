@@ -81,6 +81,12 @@ function WOW.reset(opts)
   WOW.saved = {}
   WOW.savedFile = ""
   WOW.savedNames = {}
+  WOW.logging = false
+  WOW.loggingCalls = {}
+  WOW.loggingRefused = false
+  WOW.raidInfoRequests = 0
+  WOW.missingTemplates = {}
+  UISpecialFrames = {}
 
   -- GetTime counts up from `uptime`; the server's time is GetTime plus a fixed offset (setServerTime moves it).
   -- 1793998800 is a Friday evening in November 2026, UTC: a raid night.
@@ -102,6 +108,14 @@ end
 
 -- What a frame holds that an addon must not see (its table is the addon's to put fields on).
 local frameData = setmetatable({}, { __mode = "k" })
+
+-- Calls fn, and what happens to an error depends on WOW.catchErrors: false (the default) lets it reach the test,
+-- true records it in WOW.errors the way the game's error handler would, and carries on.
+local function protected(fn, ...)
+  if not WOW.catchErrors then return fn(...) end
+  local ok, err = pcall(fn, ...)
+  if not ok then WOW.errors[#WOW.errors + 1] = tostring(err) end
+end
 
 local Frame = {}
 Frame.__index = Frame
@@ -130,27 +144,97 @@ function Frame:GetObjectType() return data(self).kind end
 function Frame:SetParent(parent) data(self).parent = parent end
 function Frame:GetParent() return data(self).parent end
 
-function CreateFrame(kind, name, parent)
+-- What the addon's window uses (Client.window). Layout calls are accepted and forgotten; text, enabled state and scripts
+-- are kept so a test can read and drive them (WOW.userText, WOW.click).
+for _, name in ipairs({ "SetSize", "SetWidth", "SetHeight", "SetPoint", "SetAllPoints", "ClearAllPoints", "SetFrameStrata",
+  "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing", "SetScrollChild", "SetMultiLine",
+  "SetFontObject", "SetAutoFocus", "SetMaxLetters", "SetNormalFontObject" }) do
+  Frame[name] = function() end
+end
+
+function Frame:SetText(text)
+  local d = data(self)
+  d.text = tostring(text)
+  -- The game tells a script the text changed, and that it was not the player who changed it.
+  if d.scripts.OnTextChanged then protected(d.scripts.OnTextChanged, self, false) end
+end
+function Frame:GetText() return data(self).text or "" end
+function Frame:GetNumLetters() return #(data(self).text or "") end
+function Frame:HighlightText() data(self).highlighted = true end
+function Frame:SetFocus() data(self).focused = true end
+function Frame:ClearFocus() data(self).focused = false end
+function Frame:HasFocus() return data(self).focused == true end
+function Frame:Enable() data(self).enabled = true end
+function Frame:Disable() data(self).enabled = false end
+function Frame:IsEnabled() return data(self).enabled ~= false end
+function Frame:GetFontString() return data(self).fontString end
+
+local FontString = {}
+FontString.__index = FontString
+for _, name in ipairs({ "SetPoint", "SetWidth", "SetJustifyH", "SetJustifyV", "SetTextColor", "SetAllPoints" }) do
+  FontString[name] = function() end
+end
+function FontString:SetText(text) self.text = tostring(text) end
+function FontString:GetText() return self.text or "" end
+
+local Texture = {}
+Texture.__index = Texture
+Texture.SetAllPoints = function() end
+Texture.SetColorTexture = function() end
+
+function Frame:CreateFontString()
+  return setmetatable({}, FontString)
+end
+function Frame:CreateTexture()
+  return setmetatable({}, Texture)
+end
+
+-- The templates the addon asks for. A template a test lists in WOW.missingTemplates is refused, as a client without it
+-- would (an error from CreateFrame).
+local TEMPLATES = { BasicFrameTemplateWithInset = true, UIPanelScrollFrameTemplate = true, UIPanelButtonTemplate = true }
+
+function CreateFrame(kind, name, parent, template)
   if type(kind) ~= "string" then fail("CreateFrame: the frame type must be a string") end
+  if template ~= nil and (not TEMPLATES[template] or WOW.missingTemplates[template]) then
+    fail("CreateFrame: couldn't find inherited node \"" .. tostring(template) .. "\"")
+  end
   local frame = setmetatable({}, Frame)
   frameData[frame] = { kind = kind, name = name, parent = parent, events = {}, scripts = {}, hooks = {}, shown = true }
   WOW.frames[#WOW.frames + 1] = frame
   if name then _G[name] = frame end
+  if template == "BasicFrameTemplateWithInset" then frame.TitleText = setmetatable({}, FontString) end
+  if template == "UIPanelButtonTemplate" then frameData[frame].fontString = setmetatable({}, FontString) end
   return frame
 end
 
--- Calls fn, and what happens to an error depends on WOW.catchErrors: false (the default) lets it reach the test,
--- true records it in WOW.errors the way the game's error handler would, and carries on.
-local function protected(fn, ...)
-  if not WOW.catchErrors then return fn(...) end
-  local ok, err = pcall(fn, ...)
-  if not ok then WOW.errors[#WOW.errors + 1] = tostring(err) end
-end
+UIParent = setmetatable({}, Frame)
+frameData[UIParent] = { kind = "Frame", name = "UIParent", events = {}, scripts = {}, hooks = {}, shown = true }
+ChatFontNormal = {}
 
 local function runScript(frame, name, ...)
   local d = data(frame)
   if d.scripts[name] then protected(d.scripts[name], frame, ...) end
   for _, hook in ipairs(d.hooks[name] or {}) do protected(hook, frame, ...) end
+end
+
+-- Types into an edit box as the player does: sets the text and tells its OnTextChanged script that the player changed it.
+function WOW.userText(frame, text)
+  data(frame).text = text
+  if data(frame).scripts.OnTextChanged then protected(data(frame).scripts.OnTextChanged, frame, true) end
+end
+
+-- Presses a button: runs its OnClick script, unless the button is disabled. Returns whether it ran.
+function WOW.click(frame)
+  local d = data(frame)
+  if d.enabled == false or not d.scripts.OnClick then return false end
+  protected(d.scripts.OnClick, frame, "LeftButton")
+  return true
+end
+
+-- What a frame holds that a test may look at: its text, whether it is shown, enabled, focused and highlighted.
+function WOW.frameState(frame)
+  local d = data(frame)
+  return { text = d.text, shown = d.shown, enabled = d.enabled ~= false, focused = d.focused == true, highlighted = d.highlighted == true }
 end
 
 -- Fires a game event at every frame registered for it, in the order the frames were made, and returns how many
@@ -413,6 +497,18 @@ function GetInstanceInfo()
   return i.name or "Test Zone", i.type or "none", i.difficultyID or 0, i.difficultyName or "", i.maxPlayers or 0,
     0, false, i.instanceID or 0, i.instanceGroupSize or 0, nil
 end
+
+-- The combat log switch: LoggingCombat() reads it, LoggingCombat(true or false) sets it and gives the new state. Every call
+-- with an argument is kept in WOW.loggingCalls; WOW.loggingRefused = true makes the client ignore the request.
+function LoggingCombat(flag)
+  if flag == nil then return WOW.logging end
+  WOW.loggingCalls[#WOW.loggingCalls + 1] = flag
+  if not WOW.loggingRefused then WOW.logging = flag == true end
+  return WOW.logging
+end
+
+-- Asks for the saved instances to be refreshed; counted, and the answer (UPDATE_INSTANCE_INFO) is the test's to fire.
+function RequestRaidInfo() WOW.raidInfoRequests = WOW.raidInfoRequests + 1 end
 
 -- Connection, saved instances, secret values, add-on metadata --------------------------------------------------------
 

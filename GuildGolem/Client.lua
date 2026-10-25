@@ -149,6 +149,10 @@ function Client.caps()
     timers = isFunction(member(C_Timer, "After")),
     frames = isFunction(CreateFrame),
     metadata = isFunction(member(C_AddOns, "GetAddOnMetadata")) or isFunction(GetAddOnMetadata),
+    loggingCombat = isFunction(LoggingCombat),
+    raidInfo = isFunction(RequestRaidInfo),
+    slashCommands = type(SlashCmdList) == "table",
+    windows = isFunction(CreateFrame) and type(UIParent) == "table",
   }
 end
 
@@ -167,6 +171,16 @@ function Client.serverTimeMs()
   local t = Client.serverTime()
   if t then return t * 1000 end
   return nil
+end
+
+-- How far the computer's clock was from the server's, in milliseconds: the server's time less time(). Negative when the
+-- computer runs ahead. It is the export's meta.skew (contract/README.md). Nil when either clock is missing.
+function Client.skewMs()
+  local server = Client.serverTimeMs()
+  local ok, local_ = call("time", time)
+  local_ = ok and plainNumber(local_) or nil
+  if not server or not local_ then return nil end
+  return server - local_ * 1000
 end
 
 -- The game's uptime clock in seconds (GetTime), for measuring gaps; not a date.
@@ -298,6 +312,16 @@ function Client.roster()
   return rows, "none"
 end
 
+-- "raid", "party" or "none" (alone): the kind of group, without reading anyone's row. A handler that only needs to know
+-- whether there is a group asks this, since the roster costs a call for every member.
+function Client.groupKind()
+  local okRaid, inRaid = call("IsInRaid", IsInRaid)
+  if okRaid and inRaid == true then return "raid" end
+  local okGroup, inGroup = call("IsInGroup", IsInGroup)
+  if okGroup and inGroup == true then return "party" end
+  return "none"
+end
+
 -- The instance the player is in ----------------------------------------------------------------------------------
 
 -- { name, type, difficulty, difficultyName, maxPlayers, instanceID, groupSize }, or nil without the API. `instanceID`
@@ -341,6 +365,34 @@ function Client.lockouts()
     end
   end
   return rows
+end
+
+-- Asks the game to refresh its list of saved instances; it answers with UPDATE_INSTANCE_INFO, after which
+-- Client.lockouts() has the lockout a kill just made. False when the client has no such call.
+-- (unverified on Forever: the probe records the lockout ids; RequestRaidInfo is retail's)
+function Client.requestRaidInfo()
+  local ok = call("RequestRaidInfo", RequestRaidInfo)
+  return ok
+end
+
+-- Combat logging -----------------------------------------------------------------------------------------------------
+
+-- True when the client is writing the combat log, false when it is not, nil when the client cannot say. (The probe
+-- reads it: retail gives a boolean, older clients 1 or nil.)
+function Client.loggingCombat()
+  local ok, value = call("LoggingCombat", LoggingCombat)
+  if not ok then return nil end
+  value = plain(value)
+  return value == true or value == 1
+end
+
+-- Turns combat logging on and says whether it is on now. There is no function here that turns it off: the addon never
+-- does (docs/PLAN.md, "Attendance"). False and why when the client has no LoggingCombat or it did not take.
+function Client.enableCombatLogging()
+  if type(LoggingCombat) ~= "function" then return false, "no-api" end
+  if not call("LoggingCombat", LoggingCombat, true) then return false, "error" end
+  if Client.loggingCombat() == true then return true end
+  return false, "refused"
 end
 
 -- The guild --------------------------------------------------------------------------------------------------------
@@ -537,4 +589,185 @@ end
 function Client.after(seconds, fn)
   local ok = call("C_Timer.After", member(C_Timer, "After"), seconds, fn)
   return ok
+end
+
+-- Slash commands ---------------------------------------------------------------------------------------------------
+
+-- Makes `commands` (a list like { "/gg", "/guildgolem" }) run handler(rest) with the text after the command. `key` names
+-- the entry in SlashCmdList, so it must be one nobody else uses. False when the client has no slash commands.
+function Client.registerSlash(key, commands, handler)
+  if type(SlashCmdList) ~= "table" or type(handler) ~= "function" then return false end
+  local ok = pcall(function()
+    for i, command in ipairs(commands) do _G["SLASH_" .. key .. i] = command end
+    SlashCmdList[key] = handler
+  end)
+  return ok
+end
+
+-- The window -----------------------------------------------------------------------------------------------------
+
+-- The addon's one window, built from a description so that UI.lua names no frame, template or font. `spec`:
+--   name        the window's global name; its parts are named after it (<name>Paste, <name>Copy, <name>Button<key>)
+--   title       its title bar
+--   width, height
+--   pasteLabel, copyLabel   what is written over the two text boxes
+--   buttons     a list of { key, label, width }, laid out in a row under the copy box
+-- Returns a handle, or nil and a message when the client would not build it:
+--   w.show(), w.hide(), w.toggle(), w.isShown()
+--   w.setStatus(text)        the line under the title
+--   w.setNote(text)          the line under the paste box (what was read, or why not)
+--   w.setCopyLabel(text)
+--   w.setPaste(text), w.paste()   the paste box's text, set or read
+--   w.setCopy(text)          fills the copy box, selects it all and focuses it, so Ctrl+C copies it. The box gives
+--                            back what it held if the player types in it
+--   w.setEnabled(key, flag), w.setButtonText(key, text)
+--   w.onPaste(fn)            fn(text) runs half a second after the player stops changing the paste box
+--   w.onClick(key, fn)       fn() runs when the button is pressed
+-- (unverified on Forever: the templates are retail's; BasicFrameTemplateWithInset, UIPanelScrollFrameTemplate and
+-- UIPanelButtonTemplate are what the probe's window uses. Each falls back to a plain frame if the client lacks it.
+-- Whether an edit box takes and gives 65,536 characters is the launch-day probe's paste-box test.)
+
+local function newFrame(kind, name, parent, template)
+  if template then
+    local ok, frame = pcall(CreateFrame, kind, name, parent, template)
+    if ok and frame then return frame, true end
+  end
+  return CreateFrame(kind, name, parent), false
+end
+
+local function backdrop(frame)
+  local texture = frame:CreateTexture(nil, "BACKGROUND")
+  texture:SetAllPoints()
+  texture:SetColorTexture(0, 0, 0, 0.9)
+end
+
+local function label(parent, x, y, width, text, font)
+  local line = parent:CreateFontString(nil, "OVERLAY", font or "GameFontHighlightSmall")
+  line:SetPoint("TOPLEFT", x, y)
+  line:SetWidth(width)
+  line:SetJustifyH("LEFT")
+  line:SetText(text or "")
+  return line
+end
+
+-- A multi-line edit box in a scroll frame, `height` tall. Returns the edit box.
+local function textBox(parent, name, x, y, width, height)
+  local scroll = newFrame("ScrollFrame", name .. "Scroll", parent, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", x, y)
+  scroll:SetSize(width - 24, height)
+  local edit = CreateFrame("EditBox", name, scroll)
+  edit:SetMultiLine(true)
+  edit:SetFontObject(ChatFontNormal)
+  edit:SetWidth(width - 28)
+  edit:SetAutoFocus(false)
+  edit:SetMaxLetters(0)
+  edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  scroll:SetScrollChild(edit)
+  return edit
+end
+
+local function buildWindow(spec)
+  local width, height = spec.width or 580, spec.height or 470
+  local frame = newFrame("Frame", spec.name, UIParent, "BasicFrameTemplateWithInset")
+  if not frame.TitleText then backdrop(frame) end
+  frame:SetSize(width, height)
+  frame:SetPoint("CENTER")
+  frame:SetFrameStrata("DIALOG")
+  frame:SetMovable(true)
+  frame:EnableMouse(true)
+  frame:RegisterForDrag("LeftButton")
+  frame:SetScript("OnDragStart", frame.StartMoving)
+  frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+  if frame.TitleText then frame.TitleText:SetText(spec.title or "") end
+  -- Escape closes it.
+  if type(UISpecialFrames) == "table" then table.insert(UISpecialFrames, spec.name) end
+
+  local inner = width - 28
+  local status = label(frame, 14, -32, inner, "")
+  label(frame, 14, -62, inner, spec.pasteLabel or "", "GameFontNormal")
+  local paste = textBox(frame, spec.name .. "Paste", 14, -82, inner, 80)
+  local note = label(frame, 14, -170, inner, "")
+  local copyLabel = label(frame, 14, -214, inner, spec.copyLabel or "", "GameFontNormal")
+  local copy = textBox(frame, spec.name .. "Copy", 14, -234, inner, 80)
+
+  local buttons, clicks = {}, {}
+  local x = 14
+  for _, def in ipairs(spec.buttons or {}) do
+    local button = newFrame("Button", spec.name .. "Button" .. def.key, frame, "UIPanelButtonTemplate")
+    if not button.GetFontString then backdrop(button) end
+    button:SetSize(def.width or 90, 22)
+    button:SetPoint("TOPLEFT", x, -340)
+    button:SetText(def.label or def.key)
+    button:SetScript("OnClick", function()
+      local fn = clicks[def.key]
+      if fn then fn() end
+    end)
+    buttons[def.key] = button
+    x = x + (def.width or 90) + 6
+  end
+
+  -- What the copy box holds is read-only: a keystroke puts it back, and focus selects it all.
+  local shown = ""
+  copy:SetScript("OnTextChanged", function(self, byPlayer)
+    if byPlayer and self:GetText() ~= shown then
+      self:SetText(shown)
+      self:HighlightText()
+    end
+  end)
+  copy:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+
+  -- The paste box's callback waits for the paste to settle, and only the last change counts.
+  local onPaste
+  local changes = 0
+  paste:SetScript("OnTextChanged", function(self, byPlayer)
+    if not byPlayer or not onPaste then return end
+    changes = changes + 1
+    local mine = changes
+    Client.after(0.5, function()
+      if mine == changes and onPaste then onPaste(self:GetText()) end
+    end)
+  end)
+
+  local w = {}
+  function w.show() frame:Show() end
+  function w.hide() frame:Hide() end
+  function w.isShown() return frame:IsShown() == true end
+  function w.toggle() if frame:IsShown() then frame:Hide() else frame:Show() end end
+  function w.setStatus(text) status:SetText(text or "") end
+  function w.setNote(text) note:SetText(text or "") end
+  function w.setCopyLabel(text) copyLabel:SetText(text or "") end
+  function w.setPaste(text) paste:SetText(text or "") end
+  function w.paste() return paste:GetText() end
+  function w.setCopy(text)
+    shown = text or ""
+    copy:SetText(shown)
+    if shown ~= "" then
+      copy:SetFocus()
+      copy:HighlightText()
+    end
+  end
+  function w.setEnabled(key, flag)
+    local button = buttons[key]
+    if not button then return end
+    if flag then button:Enable() else button:Disable() end
+  end
+  function w.setButtonText(key, text)
+    if buttons[key] then buttons[key]:SetText(text) end
+  end
+  function w.onPaste(fn) onPaste = fn end
+  function w.onClick(key, fn) clicks[key] = fn end
+  frame:Hide()
+  return w
+end
+
+function Client.window(spec)
+  if not isFunction(CreateFrame) or type(UIParent) ~= "table" and type(UIParent) ~= "userdata" then
+    return nil, "this client has no frames to build a window from"
+  end
+  local ok, result = pcall(buildWindow, spec)
+  if not ok then
+    report("window", result)
+    return nil, "the client would not build the window"
+  end
+  return result
 end
